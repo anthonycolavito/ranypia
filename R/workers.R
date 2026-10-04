@@ -262,8 +262,10 @@ disabled_worker <- function(earnings, birth_year, birth_month, onset_year, onset
     winner <- ifelse(better, j, winner)
     sm_wins <- sm_wins & !better
   }
-  # each method's DI maximum, never below the highest PIA; a special-minimum
-  # winner takes the one of the method with the highest AIME
+  # each method's DI maximum, never below the highest PIA. The ordinary and
+  # child-care computations keep their own; every other method (the special
+  # minimum, the non-freeze computation) is given the one of the method with
+  # the highest AIME.
   mfbs <- lapply(methods, function(x) {
     pmax(apply_colas(di_family_max(x$pia, x$aime, x$elig, policy), x$elig, ben$year,
                      ben$month, policy), high)
@@ -276,7 +278,8 @@ disabled_worker <- function(earnings, birth_year, birth_month, onset_year, onset
     top <- ifelse(higher, j, top)
   }
   pick <- function(vals, idx) do.call(cbind, vals)[cbind(seq_len(n), idx)]
-  mfb_v <- ifelse(sm_wins, pick(mfbs, top), pick(mfbs, winner))
+  takes_top <- sm_wins | winner == length(methods)
+  mfb_v <- ifelse(takes_top, pick(mfbs, top), pick(mfbs, winner))
   nra <- normal_retirement_age(by, bm, bd, policy)
   unrounded <- round_benefit(1 * high, cola_year(ben$year, ben$month))
   worker_tibble(ids, elig_year = pick(lapply(methods, `[[`, "elig"), winner),

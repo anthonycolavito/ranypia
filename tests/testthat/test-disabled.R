@@ -19,6 +19,10 @@ test_that("child-care dropout years match pyanypia", {
   run_fixture("disabled_childcare", TRUE)
 })
 
+test_that("a non-freeze winner takes the highest-AIME method's maximum", {
+  run_fixture("disabled_nonfreeze", TRUE)
+})
+
 test_that("di_family_max matches pyanypia", {
   fx <- fixture("formula")
   expect_identical(di_family_max(fx$pia_in, fx$aime, fx$elig), fx$di_family_max)

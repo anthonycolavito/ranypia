@@ -24,13 +24,16 @@ special_minimum_pia <- function(years_of_coverage, benefit_year, benefit_month =
   bm <- recycle_to(bm, "benefit_month", n)
   excess <- pmin(pmax(yoc - 10, 0), 20)
   before_increase <- bm < ifelse(by >= 1983, 12, 6)
-  # August-November 2001 pay the December 2000 amounts with the 1999 correction
-  aug2001 <- before_increase & by == 2001 & bm >= 8
+  # From July 2001 (amend01) the December 2000 amounts carry the 1999
+  # correction (PiaParamsLC::getSpecMinPia and getSpecMinMfb)
+  corrected <- before_increase & by == 2001 & bm >= 7
   year <- ifelse(before_increase, by - 1, by)
   row <- pmax(excess, 1)
   col <- pmin(pmax(yi(year), 1), N_YEARS)
-  pia_v <- ifelse(aug2001, policy$spec_min_pia_aug2001[row], policy$spec_min_pia[cbind(row, col)])
-  mfb_v <- ifelse(aug2001, policy$spec_min_mfb_aug2001[row], policy$spec_min_mfb[cbind(row, col)])
+  pia_v <- ifelse(corrected, policy$spec_min_pia_aug2001[row],
+                  policy$spec_min_pia[cbind(row, col)])
+  mfb_v <- ifelse(corrected, policy$spec_min_mfb_aug2001[row],
+                  policy$spec_min_mfb[cbind(row, col)])
   has <- excess > 0
   list(pia = ifelse(has, pia_v, 0), mfb = ifelse(has, mfb_v, 0))
 }

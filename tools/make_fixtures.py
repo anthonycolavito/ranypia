@@ -205,8 +205,16 @@ for alt in (1, 2, 3):
     write(f"retired_alt{alt}", {"inputs": ins, "outputs": benefit_dict(b)})
 
 # ---- disabled workers ----
-for name, cc_flag, seed in (("disabled", False, 202), ("disabled_childcare", True, 9)):
-    cases = disabled_cases(rng(seed), 300, childcare=cc_flag)
+for name, cc_flag, seed, pick in (
+    ("disabled", False, 202, None),
+    ("disabled_childcare", True, 9, None),
+    # non-freeze winners whose AIME is not the highest, which take the family
+    # maximum of the highest-AIME method; found by comparing with SSA's C++
+    ("disabled_nonfreeze", True, 12, [169, 762, 949]),
+):
+    cases = disabled_cases(rng(seed), 300 if pick is None else 2500, childcare=cc_flag)
+    if pick is not None:
+        cases = [cases[i] for i in pick]
     mat, first = as_matrix(cases)
     cc = np.zeros_like(mat, dtype=bool)
     for i, c in enumerate(cases):
