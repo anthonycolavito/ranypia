@@ -18,7 +18,9 @@ matches SSA's Detailed Calculator (AnyPIA, 2026 Trustees Report).
 remotes::install_github("anthonycolavito/ranypia")
 ```
 
-R 4.0 or newer. ranypia depends on tibble, tidyr and rlang.
+R 4.0 or newer, though current CRAN releases of tidyr need R 4.1, so a fresh
+install needs R 4.1 (an R 4.0 setup with older tidyr works). ranypia depends on
+tibble, tidyr and rlang.
 
 ## Quickstart
 
