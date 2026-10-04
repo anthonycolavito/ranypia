@@ -16,7 +16,6 @@ URL: https://github.com/anthonycolavito/ranypia
 BugReports: https://github.com/anthonycolavito/ranypia/issues
 Depends: R (>= 4.0.0)
 Imports:
-    cli,
     rlang,
     tibble,
     tidyr

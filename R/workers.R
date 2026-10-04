@@ -19,6 +19,13 @@ fill_from_people <- function(people, supplied, names, env, ids) {
   if ("id" %in% names(people)) people$id else NULL
 }
 
+# One earnings row with several values of another argument means the same
+# worker under each: repeat the row.
+expand_rows <- function(m, ...) {
+  n <- max(nrow(m), vapply(list(...), length, integer(1)))
+  if (nrow(m) == 1 && n > 1) m[rep(1, n), , drop = FALSE] else m
+}
+
 worker_tibble <- function(ids, ...) {
   cols <- list(...)
   out <- tibble::as_tibble(cols)
@@ -83,7 +90,8 @@ retired_worker <- function(earnings, birth_year, birth_month, claim_age, first_y
                             "benefit_age", "noncovered_pension"),
                           environment(), e$ids)
   if (is.null(ids)) ids <- e$ids
-  m <- e$m
+  m <- expand_rows(e$m, birth_year, birth_month, birth_day, claim_age, benefit_age,
+                   noncovered_pension)
   first <- e$first
   n <- nrow(m)
   by <- rows_of(birth_year, "birth_year", n)
@@ -177,7 +185,8 @@ disabled_worker <- function(earnings, birth_year, birth_month, onset_year, onset
                           c("birth_year", "birth_month", "birth_day", "onset_year",
                             "onset_month", "onset_day"), environment(), e$ids)
   if (is.null(ids)) ids <- e$ids
-  m <- e$m
+  m <- expand_rows(e$m, birth_year, birth_month, birth_day, onset_year, onset_month,
+                   onset_day, entitlement[[1]], benefit[[1]])
   first <- e$first
   n <- nrow(m)
   by <- rows_of(birth_year, "birth_year", n)
@@ -298,7 +307,8 @@ deceased_worker <- function(earnings, birth_year, birth_month, death_year, benef
                           c("birth_year", "birth_month", "birth_day", "death_year"),
                           environment(), e$ids)
   if (is.null(ids)) ids <- e$ids
-  m <- e$m
+  m <- expand_rows(e$m, birth_year, birth_month, birth_day, death_year, benefit[[1]],
+                   benefit[[2]])
   first <- e$first
   n <- nrow(m)
   by <- rows_of(birth_year, "birth_year", n)

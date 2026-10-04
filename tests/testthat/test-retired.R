@@ -55,3 +55,10 @@ test_that("long earnings and a people data frame give the same answer", {
   expect_identical(from_panel$benefit[ord], direct$benefit)
   expect_identical(names(from_panel)[1], "id")
 })
+
+test_that("one earnings history with several claim ages", {
+  earnings <- setNames(rep(60000, 40), 1990:2029)
+  b <- retired_worker(earnings, 1964, 6, c(745, 804, 840))
+  expect_identical(nrow(b), 3L)
+  expect_identical(b$benefit[2], retired_worker(earnings, 1964, 6, 804)$benefit)
+})
