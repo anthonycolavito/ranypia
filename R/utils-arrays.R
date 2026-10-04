@@ -128,3 +128,14 @@ earnings_matrix <- function(data) {
   attr(m, "ids") <- ids
   m
 }
+
+# A faster ifelse for long vectors: `no` where `test` is FALSE (or NA),
+# `yes` where TRUE. Keeps the dimensions of `test`.
+vif <- function(test, yes, no) {
+  n <- length(test)
+  out <- if (length(no) == n) as.vector(no) else rep_len(as.vector(no), n)
+  idx <- which(test)
+  out[idx] <- if (length(yes) == n) as.vector(yes)[idx] else rep_len(as.vector(yes), n)[idx]
+  if (!is.null(dim(test))) dim(out) <- dim(test)
+  out
+}

@@ -22,8 +22,8 @@ indexed <- function(m, first, elig, policy) {
   awi_y <- at(policy$awi, years, "awi")
   ind <- floor(col_div(awi_idx * cm, awi_y) * 100 + 0.5) / 100
   yr <- rep(years, each = nrow(m))
-  x <- ifelse(yr < elig - 2, ind, cm)
-  x <- ifelse(yr >= 1951, x, 0)
+  x <- vif(yr < elig - 2, ind, cm)
+  x <- vif(yr >= 1951, x, 0)
   dim(x) <- dim(m)
   x
 }
@@ -32,7 +32,7 @@ indexed <- function(m, first, elig, policy) {
 window <- function(m, first, last) {
   if (is.null(last)) return(m)
   yr <- rep(year_cols(first, ncol(m)), each = nrow(m))
-  x <- ifelse(yr <= last, m, 0)
+  x <- vif(yr <= last, m, 0)
   dim(x) <- dim(m)
   x
 }
@@ -55,7 +55,7 @@ select_top <- function(x, n) {
 # Row sums of the masked values, added in year order like the C++ loop.
 sum_by_year <- function(x, mask) {
   total <- numeric(nrow(x))
-  for (j in seq_len(ncol(x))) total <- total + ifelse(mask[, j], x[, j], 0)
+  for (j in seq_len(ncol(x))) total <- total + vif(mask[, j], x[, j], 0)
   total
 }
 
@@ -173,21 +173,25 @@ pre1951_total <- function(m, first) {
 # QCs earned from quarter q1 through q2 (quarter index 4 * year + 0..3). A
 # year's QCs count in any of its quarters, up to the quarters of it in range
 # (QcArray::accumulate).
-accumulate <- function(qc, first, q1, q2) {
+cumulate <- function(qc) {
+  cum <- matrix(0, nrow(qc), ncol(qc) + 1)
+  for (j in seq_len(ncol(qc))) cum[, j + 1] <- cum[, j] + qc[, j]
+  cum
+}
+
+accumulate <- function(qc, first, q1, q2, cum = cumulate(qc)) {
   n <- nrow(qc)
   width <- ncol(qc)
-  cum <- matrix(0, n, width + 1)
-  for (j in seq_len(width)) cum[, j + 1] <- cum[, j] + qc[, j]
   rows <- seq_len(n)
   year_qcs <- function(y) {
     j <- y - first + 1
     inside <- j >= 1 & j <= width
-    ifelse(inside, qc[cbind(rows, pmin(pmax(j, 1), width))], 0)
+    vif(inside, qc[cbind(rows, pmin(pmax(j, 1), width))], 0)
   }
   years_between <- function(ya, yb) {
     ja <- pmin(pmax(ya - first, 0), width)
     jb <- pmin(pmax(yb - first + 1, 0), width)
-    ifelse(jb > ja, cum[cbind(rows, jb + 1)] - cum[cbind(rows, ja + 1)], 0)
+    vif(jb > ja, cum[cbind(rows, jb + 1)] - cum[cbind(rows, ja + 1)], 0)
   }
   y1 <- q1 %/% 4
   k1 <- q1 %% 4
@@ -196,15 +200,15 @@ accumulate <- function(qc, first, q1, q2) {
   spanning <- pmin(year_qcs(y1), 4 - k1) + years_between(y1 + 1, y2 - 1) +
     pmin(year_qcs(y2), k2 + 1)
   within <- pmin(k2 - k1 + 1, year_qcs(y1))
-  ifelse(q1 > q2, 0, ifelse(y1 == y2, within, spanning))
+  vif(q1 > q2, 0, vif(y1 == y2, within, spanning))
 }
 
 NO_FREEZE <- 10000
 
 # PiaCal::fins1Cal's fully insured test as of quarter `through_q`.
-fully_insured_at <- function(m, qc, first, ky, through_q, freeze_from) {
+fully_insured_at <- function(m, qc, first, ky, through_q, freeze_from, cum = cumulate(qc)) {
   lump <- pmin(trunc(pre1951_total(m, first) / 400), 56)
-  total <- lump + accumulate(qc, first, rep(4 * 1951, length(through_q)), through_q)
+  total <- lump + accumulate(qc, first, rep(4 * 1951, length(through_q)), through_q, cum)
   e2 <- pmin(through_q %/% 4, ky + 61)
   e1 <- pmax(ky + 21, 1950)
   frozen <- ifelse(freeze_from <= e2, e2 - pmax(freeze_from, e1 + 1) + 1, 0)

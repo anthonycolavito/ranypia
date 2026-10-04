@@ -125,7 +125,8 @@ apply_colas <- function(amount, elig_year, benefit_year, benefit_month = 12,
     active <- e <= y & y <= cy
     if (!any(active)) next
     pct <- at(policy$cola, y, "cola") + ifelse(y == 1999 & from_jul2001, 0.1, 0)
-    a <- ifelse(active, apply_cola_once(a, pct, y), a)
+    idx <- which(active)
+    a[idx] <- apply_cola_once(a[idx], if (length(pct) > 1) pct[idx] else pct, y)
   }
   a
 }

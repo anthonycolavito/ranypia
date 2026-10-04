@@ -110,8 +110,9 @@ retired_worker <- function(earnings, birth_year, birth_month, claim_age, first_y
   nra <- normal_retirement_age(by, bm, bd, policy)
   ent <- k + claim
   qc <- qcs(m, first, policy)
+  cum <- cumulate(qc)
   no_freeze <- rep(NO_FREEZE, n)
-  insured <- fully_insured_at(m, qc, first, kb$year, ent %/% 3, no_freeze)
+  insured <- fully_insured_at(m, qc, first, kb$year, ent %/% 3, no_freeze, cum)
   # Delayed credits run from the first quarter, from the one NRA falls in,
   # in which the worker is fully insured (PiaCal::fullInsDateCal); never,
   # if that is not before the benefit month.
@@ -121,9 +122,12 @@ retired_worker <- function(earnings, birth_year, birth_month, claim_age, first_y
   for (j in seq(0, max(c(ben_idx %/% 3 - fra_q, 0)))) {
     q <- fra_q + j
     start <- 3 * q
-    searching <- credits_from > ben_idx & (j == 0 | start < ben_idx)
-    hit <- searching & fully_insured_at(m, qc, first, kb$year, q, no_freeze)
-    credits_from <- ifelse(hit, start, credits_from)
+    searching <- which(credits_from > ben_idx & (j == 0 | start < ben_idx))
+    if (!length(searching)) break
+    hit <- fully_insured_at(m[searching, , drop = FALSE], qc[searching, , drop = FALSE], first,
+                            kb$year[searching], q[searching], no_freeze[searching],
+                            cum[searching, , drop = FALSE])
+    credits_from[searching[hit]] <- start[searching[hit]]
   }
   factor <- benefit_factor(by, bm, claim, bd, ben_age, policy, credits_from)
   cy <- cola_year(ben$year, ben$month)

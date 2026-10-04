@@ -28,10 +28,14 @@ round_benefit <- function(amount, year) {
   amount <- rep_len(as.numeric(amount), n)
   year <- rep_len(as.numeric(year), n)
   down <- floor(10 * amount + 0.0005) / 10
-  q <- ifelse(year >= AMEND73_YEAR, 0.009, 0.499)
-  x100 <- fmod(amount * 100, 10)
-  up <- ifelse(x100 < q, amount - x100 / 100, amount + (0.10 - x100 / 100))
-  out <- ifelse(year >= AMEND82_YEAR, down, up)
+  old <- year < AMEND82_YEAR
+  out <- down
+  if (any(old)) {
+    a <- amount[old]
+    q <- vif(year[old] >= AMEND73_YEAR, 0.009, 0.499)
+    x100 <- fmod(a * 100, 10)
+    out[old] <- vif(x100 < q, a - x100 / 100, a + (0.10 - x100 / 100))
+  }
   if (!is.null(dims) && prod(dims) == n) dim(out) <- dims
   out
 }
