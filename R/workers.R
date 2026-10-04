@@ -141,3 +141,134 @@ retired_worker <- function(earnings, birth_year, birth_month, claim_age, first_y
                 method = ifelse(sm_wins, "special_minimum", "wage_indexed"),
                 insured = insured)
 }
+
+#' Disabled worker's benefit
+#'
+#' A disabled worker's benefit, with no prior retirement benefit.
+#' `entitlement` and `benefit` are `list(year, month)`; entitlement defaults
+#' to the end of the five-month waiting period, which starts with the first
+#' full month of disability, and the benefit month to entitlement. Earnings
+#' after the onset year fall in the disability freeze and are ignored.
+#'
+#' Three computations compete, as in AnyPIA, and the highest PIA wins: the
+#' ordinary one; the child-care dropout one (when `childcare` is given); and
+#' the "non-freeze" one, which takes the waiting period's first year as the
+#' eligibility year and counts every year's earnings through the year before
+#' the benefit month, if the worker is insured on that basis too. `insured`
+#' is disability insured status ([disability_insured()]).
+#'
+#' @inheritParams retired_worker
+#' @param onset_year,onset_month,onset_day Date of disability onset.
+#' @param entitlement,benefit Optional `list(year, month)`.
+#' @param childcare Optional logical matrix shaped like the earnings: years
+#'   with a child under 3 in care.
+#' @return A tibble like [retired_worker()]'s.
+#' @export
+disabled_worker <- function(earnings, birth_year, birth_month, onset_year, onset_month,
+                            first_year = NULL, birth_day = 15, onset_day = 15,
+                            entitlement = NULL, benefit = NULL, childcare = NULL,
+                            people = NULL, policy = current_law()) {
+  e <- as_earnings(earnings, first_year)
+  ids <- fill_from_people(people, names(match.call())[-1],
+                          c("birth_year", "birth_month", "birth_day", "onset_year",
+                            "onset_month", "onset_day"), environment(), e$ids)
+  if (is.null(ids)) ids <- e$ids
+  m <- e$m
+  first <- e$first
+  n <- nrow(m)
+  by <- rows_of(birth_year, "birth_year", n)
+  bm <- rows_of(birth_month, "birth_month", n)
+  bd <- rows_of(birth_day, "birth_day", n)
+  oy <- rows_of(onset_year, "onset_year", n)
+  om <- rows_of(onset_month, "onset_month", n)
+  od <- rows_of(onset_day, "onset_day", n)
+  if (is.null(entitlement)) {
+    waiting <- month_index(oy, om) + ifelse(od == 1, 0, 1)
+    ent_idx <- waiting + 5
+  } else {
+    ent_idx <- month_index(rows_of(entitlement[[1]], "entitlement_year", n),
+                           rows_of(entitlement[[2]], "entitlement_month", n))
+    waiting <- ent_idx - 5
+  }
+  ben_idx <- if (is.null(benefit)) ent_idx else
+    month_index(rows_of(benefit[[1]], "benefit_year", n),
+                rows_of(benefit[[2]], "benefit_month", n))
+  check("entitlement", ent_idx < month_index(1980, 7), "before July 1980")
+  check("benefit", ben_idx < ent_idx, "before entitlement")
+  ben <- from_month_index(ben_idx)
+  kb <- adjusted_birth(by, bm, bd)
+  through <- ben$year - 1
+
+  wage_indexed <- function(elig, last) {
+    comp <- computation_years(by, bm, elig, bd, disabled = TRUE)
+    a <- aime(m, elig, comp, first_year = first, last_year = last, policy = policy)
+    list(elig = elig, comp = comp, aime = a, pia = pia(a, elig, policy))
+  }
+  # the ordinary computation: earnings after onset fall in the freeze
+  elig <- pmin(kb$year + 62, oy)
+  jan1 <- om == 1 & od == 1
+  last_year <- pmin(through, ifelse(jan1, oy - 1, oy))
+  ordinary <- wage_indexed(elig, last_year)
+  methods <- list(ordinary)
+  if (!is.null(childcare)) {
+    elapsed <- elapsed_years(by, bm, elig, bd)
+    cc_aime <- childcare_aime(m, elig, ordinary$comp, elapsed - ordinary$comp, childcare,
+                              first_year = first, last_year = last_year,
+                              through_year = through, policy = policy)
+    methods[[length(methods) + 1]] <- list(elig = elig, aime = cc_aime,
+                                           pia = pia(cc_aime, elig, policy))
+  }
+  # the non-freeze computation applies only if insured without the freeze
+  elig_nf <- pmin(kb$year + 62, waiting %/% 12)
+  nf <- wage_indexed(elig_nf, through)
+  qc <- qcs(m, first, policy)
+  age21 <- age21_quarter(kb$year, kb$month)
+  wait_q <- waiting %/% 3
+  ent_q <- ent_idx %/% 3
+  regular <- twenty_of_forty(qc, first, wait_q, age21, FALSE)
+  young <- twenty_of_forty(qc, first, wait_q, age21, TRUE)
+  nf_ok <- (regular$ok | (regular$start < age21 & young$ok)) &
+    fully_insured_at(m, qc, first, kb$year, ent_q, waiting %/% 12)
+  methods[[length(methods) + 1]] <- list(elig = elig_nf, aime = ifelse(nf_ok, nf$aime, 0),
+                                         pia = ifelse(nf_ok, nf$pia, 0))
+  insured <- disability_insured_at(m, qc, first, kb$year, kb$month, month_index(oy, om) %/% 3,
+                                   wait_q, ent_q, oy)
+
+  pias <- lapply(methods, function(x) apply_colas(x$pia, x$elig, ben$year, ben$month, policy))
+  yoc <- years_of_coverage(m, through, first_year = first, policy = policy)
+  sm_pia <- special_minimum_pia(yoc, ben$year, ben$month, policy)$pia
+  # the highest PIA wins, ties to the earlier method; the special minimum
+  # ranks after the ordinary computation and before the others
+  high <- pias[[1]]
+  winner <- rep(1, n)
+  sm_wins <- sm_pia > high
+  high <- ifelse(sm_wins, sm_pia, high)
+  for (j in seq_along(methods)[-1]) {
+    better <- pias[[j]] > high
+    high <- ifelse(better, pias[[j]], high)
+    winner <- ifelse(better, j, winner)
+    sm_wins <- sm_wins & !better
+  }
+  # each method's DI maximum, never below the highest PIA; a special-minimum
+  # winner takes the one of the method with the highest AIME
+  mfbs <- lapply(methods, function(x) {
+    pmax(apply_colas(di_family_max(x$pia, x$aime, x$elig, policy), x$elig, ben$year,
+                     ben$month, policy), high)
+  })
+  top_aime <- methods[[1]]$aime
+  top <- rep(1, n)
+  for (j in seq_along(methods)[-1]) {
+    higher <- methods[[j]]$aime > top_aime
+    top_aime <- ifelse(higher, methods[[j]]$aime, top_aime)
+    top <- ifelse(higher, j, top)
+  }
+  pick <- function(vals, idx) do.call(cbind, vals)[cbind(seq_len(n), idx)]
+  mfb_v <- ifelse(sm_wins, pick(mfbs, top), pick(mfbs, winner))
+  nra <- normal_retirement_age(by, bm, bd, policy)
+  unrounded <- round_benefit(1 * high, cola_year(ben$year, ben$month))
+  worker_tibble(ids, elig_year = pick(lapply(methods, `[[`, "elig"), winner),
+                aime = pick(lapply(methods, `[[`, "aime"), winner),
+                pia_elig = pick(lapply(methods, `[[`, "pia"), winner), pia = high, mfb = mfb_v,
+                nra = nra, factor = rep(1, n), benefit = floor_dollar(unrounded),
+                method = ifelse(sm_wins, "special_minimum", "wage_indexed"), insured = insured)
+}

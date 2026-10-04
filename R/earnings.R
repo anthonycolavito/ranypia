@@ -137,6 +137,7 @@ elapsed_years <- function(birth_year, birth_month, elig_year, birth_day = 15,
 computation_years <- function(birth_year, birth_month, elig_year, birth_day = 15,
                               disabled = FALSE, death_year = NULL) {
   elapsed <- elapsed_years(birth_year, birth_month, elig_year, birth_day, death_year)
+  disabled <- rep_len(as.logical(disabled), length(elapsed))
   drop <- ifelse(disabled, pmin(elapsed %/% 5, 5), 5)
   pmax(elapsed - drop, 2)
 }
