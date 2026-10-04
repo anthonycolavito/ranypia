@@ -1,0 +1,7 @@
+.Rproj.user
+.Rhistory
+.RData
+*.Rcheck/
+ranypia_*.tar.gz
+.venv/
+__pycache__/

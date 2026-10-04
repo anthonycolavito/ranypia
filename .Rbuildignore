@@ -1,0 +1,9 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^LICENSE\.md$
+^data-raw$
+^tools$
+^docs$
+^\.github$
+^README\.Rmd$
+^\.venv$
