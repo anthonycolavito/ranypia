@@ -272,3 +272,112 @@ disabled_worker <- function(earnings, birth_year, birth_month, onset_year, onset
                 nra = nra, factor = rep(1, n), benefit = floor_dollar(unrounded),
                 method = ifelse(sm_wins, "special_minimum", "wage_indexed"), insured = insured)
 }
+
+#' Deceased worker's PIA and family maximum
+#'
+#' A deceased worker's PIA and family maximum in a survivor benefit month
+#' (`benefit` is `list(year, month)`), for
+#' `family_benefits(..., survivor = TRUE)`. Earnings through the year of
+#' death count. `factor` is 1 and `benefit` 0: the worker is paid nothing.
+#' `insured` is not evaluated (always `TRUE`).
+#'
+#' @inheritParams retired_worker
+#' @param death_year Year of death.
+#' @param benefit `list(year, month)` of the survivor benefit month.
+#' @return A tibble like [retired_worker()]'s.
+#' @export
+deceased_worker <- function(earnings, birth_year, birth_month, death_year, benefit,
+                            first_year = NULL, birth_day = 15, people = NULL,
+                            policy = current_law()) {
+  e <- as_earnings(earnings, first_year)
+  ids <- fill_from_people(people, names(match.call())[-1],
+                          c("birth_year", "birth_month", "birth_day", "death_year"),
+                          environment(), e$ids)
+  if (is.null(ids)) ids <- e$ids
+  m <- e$m
+  first <- e$first
+  n <- nrow(m)
+  by <- rows_of(birth_year, "birth_year", n)
+  bm <- rows_of(birth_month, "birth_month", n)
+  bd <- rows_of(birth_day, "birth_day", n)
+  dy <- rows_of(death_year, "death_year", n)
+  ben_y <- rows_of(benefit[[1]], "benefit_year", n)
+  ben_m <- rows_of(benefit[[2]], "benefit_month", n)
+  ky <- adjusted_birth(by, bm, bd)$year
+  elig <- pmin(ky + 62, dy)
+  comp <- computation_years(by, bm, elig, bd, death_year = dy)
+  aime_v <- aime(m, elig, comp, first_year = first, last_year = dy, policy = policy)
+  pia_elig <- pia(aime_v, elig, policy)
+  mfb_elig <- family_max(pia_elig, elig, policy)
+  wage_pia <- apply_colas(pia_elig, elig, ben_y, ben_m, policy)
+  wage_mfb <- apply_colas(mfb_elig, elig, ben_y, ben_m, policy)
+  sm <- special_minimum_at(m, first, dy, ben_y, ben_m, policy)
+  sm_wins <- sm$pia > wage_pia
+  worker_tibble(ids, elig_year = elig, aime = aime_v, pia_elig = pia_elig,
+                pia = ifelse(sm_wins, sm$pia, wage_pia),
+                mfb = ifelse(sm_wins, sm$mfb, wage_mfb),
+                nra = normal_retirement_age(by, bm, bd, policy), factor = rep(1, n),
+                benefit = rep(0, n),
+                method = ifelse(sm_wins, "special_minimum", "wage_indexed"),
+                insured = rep(TRUE, n))
+}
+
+#' Re-indexed widow(er)'s guarantee
+#'
+#' For a worker who dies before 62, a widow(er)'s benefit can instead be
+#' based on the worker's earnings indexed to the year the widow(er) turns 60
+#' (for a disabled widow(er), the later of onset and turning 50), but no
+#' later than the year the worker would have turned 62. Returns that PIA in
+#' the benefit month, or 0 where the guarantee does not apply; pass it as
+#' `auxiliary(guarantee_pia = )`.
+#'
+#' @inheritParams deceased_worker
+#' @param death_month,death_day Month and day of death.
+#' @param widow_birth_year,widow_birth_month,widow_birth_day The widow(er)'s
+#'   date of birth.
+#' @param disabled_onset_year,entitlement_year For a disabled widow(er): the
+#'   year of onset and of entitlement.
+#' @return Guarantee PIAs.
+#' @export
+widow_guarantee_pia <- function(earnings, birth_year, birth_month, death_year, death_month,
+                                widow_birth_year, widow_birth_month, benefit,
+                                widow_birth_day = 15, disabled_onset_year = NULL,
+                                entitlement_year = NULL, first_year = NULL, birth_day = 15,
+                                death_day = 15, policy = current_law()) {
+  e <- as_earnings(earnings, first_year)
+  m <- e$m
+  first <- e$first
+  n <- nrow(m)
+  by <- rows_of(birth_year, "birth_year", n)
+  bm <- rows_of(birth_month, "birth_month", n)
+  bd <- rows_of(birth_day, "birth_day", n)
+  dy <- rows_of(death_year, "death_year", n)
+  dm <- rows_of(death_month, "death_month", n)
+  dd <- rows_of(death_day, "death_day", n)
+  ben_y <- rows_of(benefit[[1]], "benefit_year", n)
+  ben_m <- rows_of(benefit[[2]], "benefit_month", n)
+  kb <- adjusted_birth(by, bm, bd)
+  wky <- recycle_to(adjusted_birth(widow_birth_year, widow_birth_month,
+                                   widow_birth_day)$year, "widow_birth_year", n)
+  if (is.null(disabled_onset_year)) {
+    widow_elig <- wky + 60
+    test_year <- widow_elig
+  } else {
+    if (is.null(entitlement_year)) {
+      abort_field("entitlement_year", "required for a disabled widow(er)")
+    }
+    widow_elig <- pmax(rows_of(disabled_onset_year, "disabled_onset_year", n), wky + 50)
+    test_year <- rows_of(entitlement_year, "entitlement_year", n)
+  }
+  # death before the day before the 62nd birthday (a birth on the 1st makes
+  # that the last day of the previous month)
+  kday <- ifelse(bd == 1, 31, bd - 1)
+  before62 <- (dy * 10000 + dm * 100 + dd) < ((kb$year + 62) * 10000 + kb$month * 100 + kday)
+  elig_worker <- pmin(kb$year + 62, dy)
+  applies <- before62 & elig_worker > 1978 & (test_year > 1984 | dy >= 1985)
+  elig <- pmin(pmax(elig_worker, widow_elig), kb$year + 62)
+  comp <- computation_years(by, bm, elig_worker, bd, death_year = dy)
+  aime_v <- aime(m, elig, comp, first_year = first, last_year = dy, policy = policy)
+  pia_v <- apply_colas(pia(aime_v, elig, policy), elig, ben_y, ben_m, policy)
+  ifelse(applies, pia_v, 0)
+}
