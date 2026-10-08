@@ -4,13 +4,26 @@
 \alias{quarters_of_coverage}
 \title{Quarters of coverage}
 \usage{
-quarters_of_coverage(earnings, first_year = NULL, policy = current_law())
+quarters_of_coverage(
+  earnings,
+  first_year = NULL,
+  qc_history = NULL,
+  policy = current_law()
+)
 }
 \arguments{
 \item{earnings}{A matrix (rows = workers), a named vector, or a long data
 frame; see \link{ranypia-package}.}
 
 \item{first_year}{First year of a matrix without year column names.}
+
+\item{qc_history}{Optional quarters of coverage for years before 1978
+from an earnings record, used in place of the approximation: a long data
+frame with \code{year} and \code{qcs} (and \code{id}, matching long earnings), or a
+matrix or named vector of counts with years as column names, one row
+per worker (or one row for all). \code{NA} keeps the approximation for that
+year. Counts must be 0 to 4, for years 1951 to 1977 (earlier years use
+the statute's $400 lump rule).}
 
 \item{policy}{A \code{\link[=current_law]{current_law()}} policy.}
 }
@@ -19,6 +32,16 @@ A matrix with one row per worker.
 }
 \description{
 Annual quarters of coverage, \verb{min(4, earnings \%/\% QC amount)}, on
-uncapped earnings. Before 1978 SSA counted calendar-quarter wages; this
-annual rule with the $50 amount is an approximation there.
+uncapped earnings, from 1978 on (section 213(d)). Before 1978 the Act
+credited a quarter for each calendar quarter with at least $50 of wages
+(section 213(a)(2)), which annual earnings cannot show; give the counts
+from an earnings record in \code{qc_history}. Without one, the annual rule
+with the $50 amount is used as an approximation for those years, and it
+can overstate them (a worker paid $200 in a single quarter has one
+quarter, not four).
+}
+\examples{
+e <- setNames(c(800, 2000, 5000), 1975:1977)
+quarters_of_coverage(e)
+quarters_of_coverage(e, qc_history = c("1975" = 2, "1976" = 4))
 }

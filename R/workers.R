@@ -87,6 +87,7 @@ apply_wep_if_enabled <- function(pia_elig, aime_v, elig, m, first, last_year, be
 #' @param first_year First year of a matrix without year column names.
 #' @param noncovered_pension Monthly noncovered pension; matters only when
 #'   `policy$wep_enabled`.
+#' @inheritParams quarters_of_coverage
 #' @param people Optional data frame supplying any of the per-worker
 #'   arguments as columns (explicit arguments win). With an `id` column and
 #'   long earnings, rows are matched by id. Several rows may share an id
@@ -104,7 +105,7 @@ apply_wep_if_enabled <- function(pia_elig, aime_v, elig, m, first, last_year, be
 #' retired_worker(earnings, 1964, 6, c(62 * 12 + 1, 67 * 12, 70 * 12))
 retired_worker <- function(earnings, birth_year, birth_month, claim_age, first_year = NULL,
                            birth_day = 15, benefit_age = NULL, noncovered_pension = 0,
-                           people = NULL, policy = current_law()) {
+                           qc_history = NULL, people = NULL, policy = current_law()) {
   e <- as_earnings(earnings, first_year)
   fp <- fill_from_people(people, names(match.call())[-1],
                           c("birth_year", "birth_month", "birth_day", "claim_age",
@@ -138,7 +139,8 @@ retired_worker <- function(earnings, birth_year, birth_month, claim_age, first_y
 
   nra <- normal_retirement_age(by, bm, bd, policy)
   ent <- k + claim
-  qc <- qcs(m, first, policy)
+  qc <- qcs_with(m, first, policy,
+                 fit_qc_rows(qc_history_matrix(qc_history, e), fp$rows, nrow(m)))
   cum <- cumulate(qc)
   no_freeze <- rep(NO_FREEZE, n)
   insured <- fully_insured_at(m, qc, first, kb$year, ent %/% 3, no_freeze, cum)
@@ -206,7 +208,7 @@ retired_worker <- function(earnings, birth_year, birth_month, claim_age, first_y
 disabled_worker <- function(earnings, birth_year, birth_month, onset_year, onset_month,
                             first_year = NULL, birth_day = 15, onset_day = 15,
                             entitlement = NULL, benefit = NULL, childcare = NULL,
-                            people = NULL, policy = current_law()) {
+                            qc_history = NULL, people = NULL, policy = current_law()) {
   e <- as_earnings(earnings, first_year)
   fp <- fill_from_people(people, names(match.call())[-1],
                           c("birth_year", "birth_month", "birth_day", "onset_year",
@@ -265,7 +267,8 @@ disabled_worker <- function(earnings, birth_year, birth_month, onset_year, onset
   # the non-freeze computation applies only if insured without the freeze
   elig_nf <- pmin(kb$year + 62, waiting %/% 12)
   nf <- wage_indexed(elig_nf, through)
-  qc <- qcs(m, first, policy)
+  qc <- qcs_with(m, first, policy,
+                 fit_qc_rows(qc_history_matrix(qc_history, e), fp$rows, nrow(m)))
   age21 <- age21_quarter(kb$year, kb$month)
   wait_q <- waiting %/% 3
   ent_q <- ent_idx %/% 3

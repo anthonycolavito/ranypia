@@ -18,11 +18,11 @@ The audit covered 25 provisions, compared against the code on the `phase3-4-life
 
 From Anthony's review on October 8, 2026. Item numbers refer to the tables below.
 
-**Fix now:**
+**Fix now** (done October 8, 2026, branch `audit-fixes`):
 
-- [ ] **#1** Use the regular family maximum for a disabled worker's family once the benefit converts to retirement at full retirement age.
-- [ ] **#5** Allow child's and mother's/father's benefits when the deceased worker was currently insured.
-- [ ] **#14** Replace the pre-1978 quarters-of-coverage approximation with actual historical data, and update the documentation to match.
+- [x] **#1** Use the regular family maximum for a disabled worker's family once the benefit converts to retirement at full retirement age.
+- [x] **#5** Allow child's and mother's/father's benefits when the deceased worker was currently insured.
+- [x] **#14** Replace the pre-1978 quarters-of-coverage approximation with actual historical data, and update the documentation to match. Done as a `qc_history` input of actual counts from earnings records; the annual rule remains the fallback.
 
 **Will incorporate later:** the earnings test; divorced and surviving divorced spouses, remarriage and marriage-length rules; pre-1979 computation methods; the lump-sum death payment; payable (not only scheduled) benefits.
 

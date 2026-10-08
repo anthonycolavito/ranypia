@@ -13,6 +13,7 @@ retired_worker(
   birth_day = 15,
   benefit_age = NULL,
   noncovered_pension = 0,
+  qc_history = NULL,
   people = NULL,
   policy = current_law()
 )
@@ -21,20 +22,24 @@ retired_worker(
 \item{earnings}{A matrix (rows = workers), a named vector, or a long data
 frame with \code{id}, \code{year}, \code{earnings}.}
 
-\item{birth_year}{Date of birth.}
-
-\item{birth_month}{Date of birth.}
+\item{birth_year, birth_month, birth_day}{Date of birth.}
 
 \item{claim_age}{Age at entitlement, in months.}
 
 \item{first_year}{First year of a matrix without year column names.}
 
-\item{birth_day}{Date of birth.}
-
 \item{benefit_age}{Age in the benefit month (default \code{claim_age}).}
 
 \item{noncovered_pension}{Monthly noncovered pension; matters only when
 \code{policy$wep_enabled}.}
+
+\item{qc_history}{Optional quarters of coverage for years before 1978
+from an earnings record, used in place of the approximation: a long data
+frame with \code{year} and \code{qcs} (and \code{id}, matching long earnings), or a
+matrix or named vector of counts with years as column names, one row
+per worker (or one row for all). \code{NA} keeps the approximation for that
+year. Counts must be 0 to 4, for years 1951 to 1977 (earlier years use
+the statute's $400 lump rule).}
 
 \item{people}{Optional data frame supplying any of the per-worker
 arguments as columns (explicit arguments win). With an \code{id} column and

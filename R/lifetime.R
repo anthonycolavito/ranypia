@@ -53,6 +53,10 @@
 #' @param months Calendar months to compute in each year: `1:12` (default)
 #'   for every month, or a single month such as `6` for one row a year.
 #' @inheritParams retired_worker
+#' @param qc_history Optional pre-1978 quarters of coverage from earnings
+#'   records, as in [quarters_of_coverage()]: a long data frame with `id`
+#'   (from `people`), `year` and `qcs`, or a matrix with one row per row of
+#'   `people`.
 #' @param chunk_size Rows per call to the one-call functions; it does not
 #'   change results.
 #' @return A tibble with one row per person (and child) and month from
@@ -76,7 +80,7 @@
 #' lb <- lifetime_benefits(panel, people, months = 6)
 #' lb[lb$id == 2 & lb$benefit_year %in% c(2029, 2031, 2043), ]
 lifetime_benefits <- function(earnings, people, children = NULL, months = 1:12,
-                              first_year = NULL, policy = current_law(),
+                              first_year = NULL, qc_history = NULL, policy = current_law(),
                               chunk_size = 250000) {
   if (!is.data.frame(people)) abort_field("people", "must be a data frame")
   need <- setdiff(c("id", "birth_year", "birth_month", "death_age"), names(people))
@@ -105,6 +109,8 @@ lifetime_benefits <- function(earnings, people, children = NULL, months = 1:12,
     M[!is.na(r), ] <- e$m[r[!is.na(r)], ]
   }
   first <- e$first
+  QH <- qc_history_matrix(qc_history, list(m = M, first = first, ids = people$id))
+  qrows <- function(w) if (!is.null(QH)) QH[w, , drop = FALSE]
 
   # ---- per person ----
   by <- as_whole("birth_year", people$birth_year)
@@ -143,7 +149,8 @@ lifetime_benefits <- function(earnings, people, children = NULL, months = 1:12,
     ent <- from_month_index(di_ent[w])
     d0 <- disabled_worker(M[w, , drop = FALSE], by[w], bm[w], oy[w], om[w], first_year = first,
                           birth_day = bd[w], onset_day = od[w],
-                          entitlement = list(ent$year, ent$month), policy = policy)
+                          entitlement = list(ent$year, ent$month), qc_history = qrows(w),
+                          policy = policy)
     di[w] <- d0$insured
     di_pia_elig[w] <- d0$pia_elig
     di_elig[w] <- d0$elig_year
@@ -155,7 +162,7 @@ lifetime_benefits <- function(earnings, people, children = NULL, months = 1:12,
   if (any(ret)) {
     w <- which(ret)
     r0 <- retired_worker(M[w, , drop = FALSE], by[w], bm[w], claim[w], first_year = first,
-                         birth_day = bd[w], policy = policy)
+                         birth_day = bd[w], qc_history = qrows(w), policy = policy)
     ret[w] <- r0$insured & k[w] + claim[w] < death[w]
     own_factor[w] <- r0$factor
   }
@@ -168,9 +175,9 @@ lifetime_benefits <- function(earnings, people, children = NULL, months = 1:12,
   # insured (sec. 202(d), (g))
   dmi <- from_month_index(death)
   surv_ok <- entitled | fully_insured(M, by, bm, dmi$year, dmi$month, first_year = first,
-                                      birth_day = bd, policy = policy)
+                                      birth_day = bd, qc_history = QH, policy = policy)
   surv_child <- surv_ok | currently_insured(M, dmi$year, dmi$month, first_year = first,
-                                            policy = policy)
+                                            qc_history = QH, policy = policy)
   # the deceased worker's factor for a widow(er): the claiming factor with
   # every credit earned before death; a worker past NRA who never filed gets
   # credits up to the month of death
@@ -269,7 +276,8 @@ lifetime_benefits <- function(earnings, people, children = NULL, months = 1:12,
     res <- run_rows(rr, function(x) {
       w <- pw[x]
       retired_worker(M[w, , drop = FALSE], by[w], bm[w], claim[w], first_year = first,
-                     birth_day = bd[w], benefit_age = pt[x] - k[w], policy = policy)
+                     birth_day = bd[w], benefit_age = pt[x] - k[w], qc_history = qrows(w),
+                     policy = policy)
     })
     own_benefit[rr] <- res$benefit
     own_pia[rr] <- res$pia
@@ -285,7 +293,8 @@ lifetime_benefits <- function(earnings, people, children = NULL, months = 1:12,
       disabled_worker(M[w, , drop = FALSE], by[w], bm[w], oy[w], om[w], first_year = first,
                       birth_day = bd[w], onset_day = od[w],
                       entitlement = list(ent$year, ent$month),
-                      benefit = list(ben$year, ben$month), policy = policy)
+                      benefit = list(ben$year, ben$month), qc_history = qrows(w),
+                      policy = policy)
     })
     own_benefit[dr] <- res$benefit
     own_pia[dr] <- res$pia

@@ -14,6 +14,7 @@ benefit_stream(
   first_year = NULL,
   birth_day = 15,
   noncovered_pension = 0,
+  qc_history = NULL,
   people = NULL,
   policy = current_law(),
   chunk_size = 250000
@@ -38,6 +39,14 @@ every month.}
 
 \item{noncovered_pension}{Monthly noncovered pension; matters only when
 \code{policy$wep_enabled}.}
+
+\item{qc_history}{Optional quarters of coverage for years before 1978
+from an earnings record, used in place of the approximation: a long data
+frame with \code{year} and \code{qcs} (and \code{id}, matching long earnings), or a
+matrix or named vector of counts with years as column names, one row
+per worker (or one row for all). \code{NA} keeps the approximation for that
+year. Counts must be 0 to 4, for years 1951 to 1977 (earlier years use
+the statute's $400 lump rule).}
 
 \item{people}{Optional data frame supplying any of the per-worker
 arguments as columns (explicit arguments win). With an \code{id} column and
