@@ -178,14 +178,3 @@ test_that("a currently insured worker's children and widow get benefits, the wid
   expect_identical(unique(mom$aux_type), "parent_with_child")
   expect_false(any(lb$aux_type[lb$id == 2] %in% "widow"))
 })
-
-test_that("qc_history reaches the panel runner", {
-  e <- data.frame(id = 1, year = 1955:1977, earnings = 300)
-  people <- data.frame(id = 1, birth_year = 1930, birth_month = 6, claim_age = 65 * 12,
-                       death_age = 80 * 12)
-  with_rule <- lifetime_benefits(e, people, months = 6)
-  expect_true(all(with_rule$own_type == "retired"))
-  rec <- data.frame(id = 1, year = 1955:1977, qcs = 1)
-  with_rec <- lifetime_benefits(e, people, months = 6, qc_history = rec)
-  expect_equal(nrow(with_rec), 0)  # never insured: no entitlement, no rows
-})

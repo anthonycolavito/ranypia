@@ -13,7 +13,6 @@ fully_insured(
   through_month = 12,
   first_year = NULL,
   birth_day = 15,
-  qc_history = NULL,
   policy = current_law()
 )
 
@@ -27,7 +26,6 @@ disability_insured(
   birth_day = 15,
   onset_day = 15,
   entitlement = NULL,
-  qc_history = NULL,
   policy = current_law()
 )
 }
@@ -35,19 +33,15 @@ disability_insured(
 \item{earnings}{A matrix (rows = workers), a named vector, or a long data
 frame; see \link{ranypia-package}.}
 
-\item{birth_year, birth_month, birth_day}{Date of birth.}
+\item{birth_year}{Date of birth.}
+
+\item{birth_month}{Date of birth.}
 
 \item{through_year, through_month}{The month at which to test.}
 
 \item{first_year}{First year of a matrix without year column names.}
 
-\item{qc_history}{Optional quarters of coverage for years before 1978
-from an earnings record, used in place of the approximation: a long data
-frame with \code{year} and \code{qcs} (and \code{id}, matching long earnings), or a
-matrix or named vector of counts with years as column names, one row
-per worker (or one row for all). \code{NA} keeps the approximation for that
-year. Counts must be 0 to 4, for years 1951 to 1977 (earlier years use
-the statute's $400 lump rule).}
+\item{birth_day}{Date of birth.}
 
 \item{policy}{A \code{\link[=current_law]{current_law()}} policy.}
 

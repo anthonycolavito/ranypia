@@ -45,8 +45,8 @@
 #' head(annual)
 benefit_stream <- function(earnings, birth_year, birth_month, claim_age, to_age = 1200,
                            step = 12, first_year = NULL, birth_day = 15,
-                           noncovered_pension = 0, qc_history = NULL, people = NULL,
-                           policy = current_law(), chunk_size = 250000) {
+                           noncovered_pension = 0, people = NULL, policy = current_law(),
+                           chunk_size = 250000) {
   e <- as_earnings(earnings, first_year)
   fp <- fill_from_people(people, names(match.call())[-1],
                          c("birth_year", "birth_month", "birth_day", "claim_age", "to_age",
@@ -56,7 +56,6 @@ benefit_stream <- function(earnings, birth_year, birth_month, claim_age, to_age 
   m <- expand_rows(take_rows(e$m, fp$rows), birth_year, birth_month, birth_day, claim_age,
                    to_age, noncovered_pension)
   n <- nrow(m)
-  qh <- fit_qc_rows(qc_history_matrix(qc_history, e), fp$rows, n)
   by <- rows_of(birth_year, "birth_year", n)
   bm <- rows_of(birth_month, "birth_month", n)
   bd <- rows_of(birth_day, "birth_day", n)
@@ -76,7 +75,7 @@ benefit_stream <- function(earnings, birth_year, birth_month, claim_age, to_age 
     retired_worker(
       m[wr, , drop = FALSE], by[wr], bm[wr], claim[wr], first_year = e$first,
       birth_day = bd[wr], benefit_age = ben_age[r], noncovered_pension = ncp[wr],
-      qc_history = if (!is.null(qh)) qh[wr, , drop = FALSE], policy = policy
+      policy = policy
     )
   })
   out <- do.call(rbind, pieces)
@@ -152,8 +151,7 @@ chunks <- function(total, chunk_size) {
 disabled_stream <- function(earnings, birth_year, birth_month, onset_year, onset_month,
                             to_age = 1200, step = 12, first_year = NULL, birth_day = 15,
                             onset_day = 15, entitlement = NULL, childcare = NULL,
-                            qc_history = NULL, people = NULL, policy = current_law(),
-                            chunk_size = 250000) {
+                            people = NULL, policy = current_law(), chunk_size = 250000) {
   e <- as_earnings(earnings, first_year)
   fp <- fill_from_people(people, names(match.call())[-1],
                          c("birth_year", "birth_month", "birth_day", "onset_year",
@@ -166,7 +164,6 @@ disabled_stream <- function(earnings, birth_year, birth_month, onset_year, onset
   m <- expand_rows(take_rows(e$m, fp$rows), birth_year, birth_month, birth_day, onset_year,
                    onset_month, onset_day, to_age, entitlement[[1]])
   n <- nrow(m)
-  qh <- fit_qc_rows(qc_history_matrix(qc_history, e), fp$rows, n)
   if (is.matrix(childcare) && nrow(childcare) == 1 && n > 1) {
     childcare <- childcare[rep(1, n), , drop = FALSE]
   }
@@ -206,7 +203,7 @@ disabled_stream <- function(earnings, birth_year, birth_month, onset_year, onset
                     first_year = e$first, birth_day = bd[wr], onset_day = od[wr],
                     entitlement = list(ent$year[wr], ent$month[wr]),
                     benefit = list(ben$year[r], ben$month[r]), childcare = cc,
-                    qc_history = if (!is.null(qh)) qh[wr, , drop = FALSE], policy = policy)
+                    policy = policy)
   })
   out <- do.call(rbind, pieces)
 

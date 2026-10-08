@@ -10,7 +10,6 @@ lifetime_benefits(
   children = NULL,
   months = 1:12,
   first_year = NULL,
-  qc_history = NULL,
   policy = current_law(),
   chunk_size = 250000
 )
@@ -39,11 +38,6 @@ parent is entitled, or after the parent's death.}
 for every month, or a single month such as \code{6} for one row a year.}
 
 \item{first_year}{First year of a matrix without year column names.}
-
-\item{qc_history}{Optional pre-1978 quarters of coverage from earnings
-records, as in \code{\link[=quarters_of_coverage]{quarters_of_coverage()}}: a long data frame with \code{id}
-(from \code{people}), \code{year} and \code{qcs}, or a matrix with one row per row of
-\code{people}.}
 
 \item{policy}{A \code{\link[=current_law]{current_law()}} policy.}
 

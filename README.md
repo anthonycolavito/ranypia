@@ -197,12 +197,8 @@ Not covered:
 - the pre-1979 computation methods
 - totalization, and the disability guarantee after a prior disability
 - divorced spouses, and the earnings test
-- **pre-1978 quarters of coverage without an earnings record.** The Act
-  credited a quarter for each calendar quarter with $50 of wages, which
-  annual earnings can't show. Give the counts from an earnings record in
-  `qc_history` (accepted by every function that tests insured status) and
-  they are used exactly; without one, an annual rule approximates them and
-  can overstate them
+- **pre-1978 quarters of coverage**, which are approximated with an annual
+  rule
 - **the GPO**, which follows the statute, because AnyPIA has none
 
 The WEP and GPO were repealed for benefits after December 2023, so

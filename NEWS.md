@@ -8,11 +8,6 @@
 * New `currently_insured()` (section 214(b)). `lifetime_benefits()` now pays
   children and a parent caring for a child when the deceased worker was
   only currently insured, as section 202(d) and (g) allow.
-* New `qc_history` argument (in `quarters_of_coverage()`, the insured-status
-  functions, `retired_worker()`, `disabled_worker()`, the streams and
-  `lifetime_benefits()`): actual pre-1978 quarters of coverage from an
-  earnings record, used in place of the annual approximation, which remains
-  the fallback where no record is given.
 * New `benefit_stream()`: a retired worker's benefit every year (or every
   month) from the claim month to a final age, each row exactly what
   `retired_worker()` gives with that `benefit_age`. End ages can differ by
