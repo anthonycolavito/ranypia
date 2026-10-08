@@ -8,6 +8,11 @@
 * New `currently_insured()` (section 214(b)). `lifetime_benefits()` now pays
   children and a parent caring for a child when the deceased worker was
   only currently insured, as section 202(d) and (g) allow.
+* The earnings needed for a quarter of coverage are now stored as data
+  (`qc_hist` in `current_law()`): the Act's $50 before 1978 and SSA's
+  published amounts for 1978-2026, with only later years projected. Results
+  are unchanged (the stored values equal the formula's), but a reform to
+  `qc_base` no longer rewrites history.
 * New `benefit_stream()`: a retired worker's benefit every year (or every
   month) from the claim month to a final age, each row exactly what
   `retired_worker()` gives with that `benefit_age`. End ages can differ by

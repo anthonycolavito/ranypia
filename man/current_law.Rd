@@ -26,6 +26,12 @@ special-minimum tables, ...), each indexed by \code{year - 1936} for
 \details{
 Change primitives with \code{\link[=policy_replace]{policy_replace()}}; the derived series follow.
 Pin individual derived values with \code{\link[=policy_with_series]{policy_with_series()}}.
+
+Historical values are data, not projections: the AWI, COLAs, taxable
+maximums, and the earnings needed for a quarter of coverage (\code{qc_hist}:
+the Act's $50 a calendar quarter before 1978, and SSA's published amounts
+for 1978-2026). Only later years are projected, so a reform to a
+projection input such as \code{qc_base} changes only future years.
 }
 \examples{
 pol <- current_law()

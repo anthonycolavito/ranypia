@@ -19,6 +19,10 @@ A matrix with one row per worker.
 }
 \description{
 Annual quarters of coverage, \verb{min(4, earnings \%/\% QC amount)}, on
-uncapped earnings. Before 1978 SSA counted calendar-quarter wages; this
-annual rule with the $50 amount is an approximation there.
+uncapped earnings. The QC amount for each year is the actual historical
+requirement stored in the policy (\code{qc_amount}, from \code{qc_hist}): SSA's
+published amounts from 1978, and before 1978 the Act's $50. Before 1978,
+though, the $50 applied to wages paid in each calendar quarter (section
+213(a)(2)), which annual earnings cannot show, so applying it to the
+year's total is an approximation for those years.
 }

@@ -7,8 +7,28 @@ SERIES <- c("awi", "cola", "taxmax", "base77", "qc_amount", "yoc_specmin", "yoc_
 PRIMITIVES <- c(
   "awi_hist", "awi_growth", "cola_hist", "cola_proj", "taxmax_hist", "base77_hist",
   "pia_bend_base", "pia_pct", "mfb_bend_base", "mfb_pct", "ar_rate_first",
-  "ar_rate_later", "ar_months_first", "spouse_ar_rate_first", "drc_rate", "qc_base",
+  "ar_rate_later", "ar_months_first", "spouse_ar_rate_first", "drc_rate", "qc_hist", "qc_base",
   "spec_min_amount", "wep_enabled", "gpo_enabled", "gpo_fraction", "overrides"
+)
+
+# Earnings needed for a quarter of coverage, as SSA published them
+# (https://www.ssa.gov/oact/cola/QC.html, checked 2026-10-08). Before 1978
+# the Act credited a quarter for each calendar quarter in which at least $50
+# of wages was paid (sec. 213(a)(2)), and four quarters for a year with at
+# least $400 of self-employment income; from 1978 the amount applies to
+# annual earnings (sec. 213(d)), indexed to the AWI. Later years are
+# projected from the AWI.
+QC_HIST <- c(
+  stats::setNames(rep(50, 1977 - 1937 + 1), 1937:1977),
+  c(`1978` = 250, `1979` = 260, `1980` = 290, `1981` = 310, `1982` = 340, `1983` = 370,
+    `1984` = 390, `1985` = 410, `1986` = 440, `1987` = 460, `1988` = 470, `1989` = 500,
+    `1990` = 520, `1991` = 540, `1992` = 570, `1993` = 590, `1994` = 620, `1995` = 630,
+    `1996` = 640, `1997` = 670, `1998` = 700, `1999` = 740, `2000` = 780, `2001` = 830,
+    `2002` = 870, `2003` = 890, `2004` = 900, `2005` = 920, `2006` = 970, `2007` = 1000,
+    `2008` = 1050, `2009` = 1090, `2010` = 1120, `2011` = 1120, `2012` = 1130,
+    `2013` = 1160, `2014` = 1200, `2015` = 1220, `2016` = 1260, `2017` = 1300,
+    `2018` = 1320, `2019` = 1360, `2020` = 1410, `2021` = 1470, `2022` = 1510,
+    `2023` = 1640, `2024` = 1730, `2025` = 1810, `2026` = 1890)
 )
 
 statutory_nra <- function(elig_year) {
@@ -39,6 +59,12 @@ statutory_drc <- function(elig_year) {
 #' Change primitives with [policy_replace()]; the derived series follow.
 #' Pin individual derived values with [policy_with_series()].
 #'
+#' Historical values are data, not projections: the AWI, COLAs, taxable
+#' maximums, and the earnings needed for a quarter of coverage (`qc_hist`:
+#' the Act's $50 a calendar quarter before 1978, and SSA's published amounts
+#' for 1978-2026). Only later years are projected, so a reform to a
+#' projection input such as `qc_base` changes only future years.
+#'
 #' @param alt Trustees Report alternative: 1 (low cost), 2 (intermediate) or
 #'   3 (high cost).
 #' @return A `ranypia_policy`.
@@ -65,6 +91,7 @@ current_law <- function(alt = 2) {
     ar_months_first = 36,
     spouse_ar_rate_first = 25 / 3600,
     drc_rate = NULL,
+    qc_hist = QC_HIST,
     qc_base = 250,
     spec_min_amount = 11.50,
     wep_enabled = FALSE,
@@ -158,7 +185,10 @@ new_policy <- function(p) {
                                           hist_last(p$taxmax_hist) + 1, LAST_YEAR))
   base77 <- finish("base77", project_base(to_series(p$base77_hist), awi, cola, 2,
                                           hist_last(p$base77_hist) + 1, LAST_YEAR))
-  qc_amount <- finish("qc_amount", project_qc_amounts(awi, LAST_YEAR, p$qc_base))
+  # the published amounts through the last historical year, then projected
+  qc_hist <- to_series(p$qc_hist)
+  qc_proj <- project_qc_amounts(awi, LAST_YEAR, p$qc_base)
+  qc_amount <- finish("qc_amount", ifelse(is.na(qc_hist), qc_proj, qc_hist))
   post51 <- years >= 1951
   yoc_specmin <- ifelse(post51, ifelse(years < 1991, 0.25, 0.15) * base77, NA_real_)
   yoc_wep <- ifelse(post51, 0.25 * base77, NA_real_)

@@ -197,8 +197,11 @@ Not covered:
 - the pre-1979 computation methods
 - totalization, and the disability guarantee after a prior disability
 - divorced spouses, and the earnings test
-- **pre-1978 quarters of coverage**, which are approximated with an annual
-  rule
+- **pre-1978 quarters of coverage**, in one respect: the policy stores the
+  actual historical requirements (the Act's $50 before 1978, SSA's published
+  amounts from 1978), but before 1978 the $50 applied to each calendar
+  quarter's wages, and annual earnings can't show how wages fell across
+  quarters, so the $50 is applied to the year's total
 - **the GPO**, which follows the statute, because AnyPIA has none
 
 The WEP and GPO were repealed for benefits after December 2023, so
