@@ -58,3 +58,28 @@ test_that("disabled_worker matches pyanypia past NRA, apart from the converted m
   expect_identical(got$mfb[conv & !sm], regular[conv & !sm])
   expect_true(all(got$mfb[conv & !sm] >= want$mfb[conv & !sm]))
 })
+
+test_that("a disabled worker's survivors: the PIA with the freeze, the regular maximum", {
+  # disabled at 45 in 2015 with no earnings after; dies in 2028
+  e <- setNames(current_law()$awi[(1992:2014) - 1936], 1992:2014)
+  plain <- deceased_worker(e, 1970, 3, 2028, list(2029, 6))
+  frz <- deceased_worker(e, 1970, 3, 2028, list(2029, 6), onset_year = 2015, onset_month = 6)
+  di <- disabled_worker(e, 1970, 3, 2015, 6, benefit = list(2029, 6))
+  # without the freeze, 13 zero years and indexing to 2026 drag the PIA down
+  expect_lt(plain$pia, di$pia)
+  expect_identical(frz$pia, di$pia)
+  expect_identical(frz$elig_year, di$elig_year)
+  expect_identical(frz$method, "disability_freeze")
+  expect_identical(frz$mfb, apply_colas(family_max(di$pia_elig, di$elig_year),
+                                        di$elig_year, 2029, 6))
+  # NA onset leaves a worker as before; vectors mix
+  both <- deceased_worker(rbind(e, e), 1970, 3, 2028, list(2029, 6),
+                          onset_year = c(NA, 2015), onset_month = c(NA, 6))
+  expect_identical(both$pia, c(plain$pia, frz$pia))
+  # a worker not disability insured at onset gets no freeze
+  thin <- setNames(c(rep(0, 20), 30000, 30000, 30000), 1992:2014)
+  expect_false(disabled_worker(thin, 1970, 3, 2015, 6)$insured)
+  expect_identical(deceased_worker(thin, 1970, 3, 2028, list(2029, 6), onset_year = 2015,
+                                   onset_month = 6)$method,
+                   deceased_worker(thin, 1970, 3, 2028, list(2029, 6))$method)
+})

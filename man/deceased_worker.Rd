@@ -12,6 +12,10 @@ deceased_worker(
   benefit,
   first_year = NULL,
   birth_day = 15,
+  onset_year = NULL,
+  onset_month = NULL,
+  onset_day = 15,
+  entitlement = NULL,
   people = NULL,
   policy = current_law()
 )
@@ -20,9 +24,7 @@ deceased_worker(
 \item{earnings}{A matrix (rows = workers), a named vector, or a long data
 frame with \code{id}, \code{year}, \code{earnings}.}
 
-\item{birth_year}{Date of birth.}
-
-\item{birth_month}{Date of birth.}
+\item{birth_year, birth_month, birth_day}{Date of birth.}
 
 \item{death_year}{Year of death.}
 
@@ -30,7 +32,11 @@ frame with \code{id}, \code{year}, \code{earnings}.}
 
 \item{first_year}{First year of a matrix without year column names.}
 
-\item{birth_day}{Date of birth.}
+\item{onset_year, onset_month, onset_day}{Disability onset, for a worker who
+was entitled to disability benefits; \code{NA} where not.}
+
+\item{entitlement}{Optional \code{list(year, month)} of disability entitlement
+(default: after the five-month waiting period).}
 
 \item{people}{Optional data frame supplying any of the per-worker
 arguments as columns (explicit arguments win). With an \code{id} column and
@@ -49,4 +55,18 @@ A deceased worker's PIA and family maximum in a survivor benefit month
 \code{family_benefits(..., survivor = TRUE)}. Earnings through the year of
 death count. \code{factor} is 1 and \code{benefit} 0: the worker is paid nothing.
 \code{insured} is not evaluated (always \code{TRUE}).
+}
+\details{
+For a worker who was entitled to disability benefits (give \code{onset_year}
+and \code{onset_month}; \code{NA} for workers who were not), the survivor PIA is
+also computed as the disability PIA is: with the period of disability
+excluded (the "freeze", section 215(b)(2)(B)) and the disability
+eligibility year kept, since the worker was entitled within 12 months of
+death (section 215(a)(2)(A)). That is \code{\link[=disabled_worker]{disabled_worker()}}'s computation
+for the survivor month, and the higher PIA is used, with the regular
+family maximum on it: the disability maximum ends at death (POMS RS
+00615.742). \code{method} is then \code{"disability_freeze"}. Disability is assumed
+to have lasted until death or conversion at NRA; the disability
+computation counts earnings through the year before the survivor month,
+not the year of death.
 }

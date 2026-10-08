@@ -78,6 +78,9 @@ period and converts to a retirement benefit at normal retirement age;
 disability is used only if it starts before \code{claim_age}. People with a
 child under 16 in care are assumed to file as soon as they can.
 
+A disabled worker's survivors get the PIA computed with the period of
+disability excluded (see \code{\link[=deceased_worker]{deceased_worker()}}).
+
 Survivors need the worker entitled or fully insured at death for a
 widow(er)'s benefit, and fully or currently insured (\code{\link[=currently_insured]{currently_insured()}})
 for child's and mother's or father's benefits.

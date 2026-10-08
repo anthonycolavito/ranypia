@@ -341,21 +341,40 @@ disabled_worker <- function(earnings, birth_year, birth_month, onset_year, onset
 #' death count. `factor` is 1 and `benefit` 0: the worker is paid nothing.
 #' `insured` is not evaluated (always `TRUE`).
 #'
+#' For a worker who was entitled to disability benefits (give `onset_year`
+#' and `onset_month`; `NA` for workers who were not), the survivor PIA is
+#' also computed as the disability PIA is: with the period of disability
+#' excluded (the "freeze", section 215(b)(2)(B)) and the disability
+#' eligibility year kept, since the worker was entitled within 12 months of
+#' death (section 215(a)(2)(A)). That is [disabled_worker()]'s computation
+#' for the survivor month, and the higher PIA is used, with the regular
+#' family maximum on it: the disability maximum ends at death (POMS RS
+#' 00615.742). `method` is then `"disability_freeze"`. Disability is assumed
+#' to have lasted until death or conversion at NRA; the disability
+#' computation counts earnings through the year before the survivor month,
+#' not the year of death.
+#'
 #' @inheritParams retired_worker
 #' @param death_year Year of death.
 #' @param benefit `list(year, month)` of the survivor benefit month.
+#' @param onset_year,onset_month,onset_day Disability onset, for a worker who
+#'   was entitled to disability benefits; `NA` where not.
+#' @param entitlement Optional `list(year, month)` of disability entitlement
+#'   (default: after the five-month waiting period).
 #' @return A tibble like [retired_worker()]'s.
 #' @export
 deceased_worker <- function(earnings, birth_year, birth_month, death_year, benefit,
-                            first_year = NULL, birth_day = 15, people = NULL,
-                            policy = current_law()) {
+                            first_year = NULL, birth_day = 15, onset_year = NULL,
+                            onset_month = NULL, onset_day = 15, entitlement = NULL,
+                            people = NULL, policy = current_law()) {
   e <- as_earnings(earnings, first_year)
   fp <- fill_from_people(people, names(match.call())[-1],
-                          c("birth_year", "birth_month", "birth_day", "death_year"),
+                          c("birth_year", "birth_month", "birth_day", "death_year",
+                            "onset_year", "onset_month", "onset_day"),
                           environment(), e$ids)
   ids <- if (is.null(fp$ids)) e$ids else fp$ids
   m <- expand_rows(take_rows(e$m, fp$rows), birth_year, birth_month, birth_day, death_year,
-                   benefit[[1]], benefit[[2]])
+                   benefit[[1]], benefit[[2]], onset_year)
   first <- e$first
   n <- nrow(m)
   by <- rows_of(birth_year, "birth_year", n)
@@ -374,13 +393,49 @@ deceased_worker <- function(earnings, birth_year, birth_month, death_year, benef
   wage_mfb <- apply_colas(mfb_elig, elig, ben_y, ben_m, policy)
   sm <- special_minimum_at(m, first, dy, ben_y, ben_m, policy)
   sm_wins <- sm$pia > wage_pia
-  worker_tibble(ids, elig_year = elig, aime = aime_v, pia_elig = pia_elig,
-                pia = ifelse(sm_wins, sm$pia, wage_pia),
-                mfb = ifelse(sm_wins, sm$mfb, wage_mfb),
+  out_elig <- elig
+  out_aime <- aime_v
+  out_pia_elig <- pia_elig
+  out_pia <- ifelse(sm_wins, sm$pia, wage_pia)
+  out_mfb <- ifelse(sm_wins, sm$mfb, wage_mfb)
+  method <- ifelse(sm_wins, "special_minimum", "wage_indexed")
+
+  # a worker entitled to disability benefits: the computation with the
+  # freeze and the disability eligibility year, if higher
+  if (!is.null(onset_year)) {
+    oy <- recycle_to(as_num_na("onset_year", onset_year), "onset_year", n)
+    om <- recycle_to(as_num_na("onset_month", if (is.null(onset_month)) NA else onset_month),
+                     "onset_month", n)
+    od <- recycle_to(as_num_na("onset_day", onset_day), "onset_day", n)
+    od[is.na(od)] <- 15
+    check("onset_month", !is.na(oy) & is.na(om), "missing where onset_year is given")
+    w <- which(!is.na(oy))
+    if (length(w)) {
+      ent <- NULL
+      if (!is.null(entitlement)) {
+        ent <- list(recycle_to(entitlement[[1]], "entitlement_year", n)[w],
+                    recycle_to(entitlement[[2]], "entitlement_month", n)[w])
+      }
+      d <- disabled_worker(m[w, , drop = FALSE], by[w], bm[w], oy[w], om[w],
+                           first_year = first, birth_day = bd[w], onset_day = od[w],
+                           entitlement = ent, benefit = list(ben_y[w], ben_m[w]),
+                           policy = policy)
+      di_mfb <- apply_colas(family_max(d$pia_elig, d$elig_year, policy), d$elig_year,
+                            ben_y[w], ben_m[w], policy)
+      better <- d$insured & d$method == "wage_indexed" & d$pia > out_pia[w]
+      b <- w[better]
+      out_elig[b] <- d$elig_year[better]
+      out_aime[b] <- d$aime[better]
+      out_pia_elig[b] <- d$pia_elig[better]
+      out_pia[b] <- d$pia[better]
+      out_mfb[b] <- di_mfb[better]
+      method[b] <- "disability_freeze"
+    }
+  }
+  worker_tibble(ids, elig_year = out_elig, aime = out_aime, pia_elig = out_pia_elig,
+                pia = out_pia, mfb = out_mfb,
                 nra = normal_retirement_age(by, bm, bd, policy), factor = rep(1, n),
-                benefit = rep(0, n),
-                method = ifelse(sm_wins, "special_minimum", "wage_indexed"),
-                insured = rep(TRUE, n))
+                benefit = rep(0, n), method = method, insured = rep(TRUE, n))
 }
 
 #' Re-indexed widow(er)'s guarantee

@@ -78,6 +78,7 @@ Fix now (branch `audit-fixes`):
 
 - [x] #1 Regular family maximum for a disabled worker's family from the month the benefit converts to retirement at FRA (§203(a)(6); POMS RS 00615.742).
 - [x] #5 Child's and mother's/father's benefits when the deceased worker was currently insured (§202(d), (g); §214(b)).
+- [x] #8 Survivors of a disabled worker: `deceased_worker()` computes the PIA with the freeze and the disability eligibility year (secs. 215(a)(2)(A), 215(b)(2)(B)); `lifetime_benefits()` uses it. *Added to the fix list 2026-10-08 after the explanation.*
 - [x] #14 Store the actual historical QC requirements in the policy data; update the README and help pages. *Done: `qc_hist` in `current_law()` (the Act's $50 before 1978, SSA's published amounts 1978-2026, verified against ssa.gov). The per-calendar-quarter test before 1978 stays applied to annual totals, since ranypia takes annual earnings only; no records input (Anthony, 2026-10-08).*
 
 Incorporate later, each its own phase:

@@ -8,6 +8,13 @@
 * New `currently_insured()` (section 214(b)). `lifetime_benefits()` now pays
   children and a parent caring for a child when the deceased worker was
   only currently insured, as section 202(d) and (g) allow.
+* `deceased_worker()` takes a disability onset (and optionally entitlement)
+  for a worker who was entitled to disability benefits: the survivor PIA is
+  then also computed with the period of disability excluded and the
+  disability eligibility year (sections 215(a)(2)(A), 215(b)(2)(B)), the
+  higher PIA is used, with the regular family maximum. `lifetime_benefits()`
+  uses it for every disabled worker's survivors, replacing its earlier
+  approximation.
 * The earnings needed for a quarter of coverage are now stored as data
   (`qc_hist` in `current_law()`): the Act's $50 before 1978 and SSA's
   published amounts for 1978-2026, with only later years projected. Results

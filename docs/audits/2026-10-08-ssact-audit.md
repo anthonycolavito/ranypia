@@ -22,6 +22,7 @@ From Anthony's review on October 8, 2026. Item numbers refer to the tables below
 
 - [x] **#1** Use the regular family maximum for a disabled worker's family once the benefit converts to retirement at full retirement age.
 - [x] **#5** Allow child's and mother's/father's benefits when the deceased worker was currently insured.
+- [x] **#8** Compute the survivor PIA of a disabled worker with the freeze, as the Act does. Done: `deceased_worker()` takes the disability onset, and `lifetime_benefits()` uses it. (Added after the explanation below.)
 - [x] **#14** Store the actual historical quarter-of-coverage requirements in the policy data, and update the documentation to match. Done: `qc_hist` in `current_law()`; the pre-1978 per-quarter test is still applied to annual totals, since ranypia takes annual earnings only.
 
 **Will incorporate later:** the earnings test; divorced and surviving divorced spouses, remarriage and marriage-length rules; pre-1979 computation methods; the lump-sum death payment; payable (not only scheduled) benefits.
@@ -31,6 +32,8 @@ From Anthony's review on October 8, 2026. Item numbers refer to the tables below
 **Ignored:** #3 the $1 recomputation threshold; #4 WEP and GPO dating; #6 pre-2016 deemed filing; totalization.
 
 **Explained below:** #8 survivors of a disabled worker; disabled widow(er)s, disability recovery and prior disability.
+
+**pyanypia:** fix #1 makes ranypia differ from pyanypia and AnyPIA on purpose, for a disabled worker's family maximum from NRA. The difference is accepted and documented in the README, NEWS, `disabled_worker()`'s help page and its fixture test.
 
 ## Differences that change results
 
@@ -52,7 +55,7 @@ The panel runner adds eligibility rules on top of the formula functions. Each of
 | 5 | §202(d), §202(g) | Child's and mother's/father's benefits are payable if the worker died fully **or currently** insured | Requires the worker to be entitled or fully insured at death | Young survivor families of workers with short careers get nothing when they should get benefits | Fix |
 | 6 | §202(r), as amended by the Bipartisan Budget Act of 2015 | Deemed filing at any age applies to people who turn 62 in 2016 or later; earlier cohorts were deemed to file only before full retirement age | Assumes deemed filing for everyone | Spouses born before 1954 who filed a restricted application are not modeled | Ignore |
 | 7 | §202(s)(1) | A child in care can be under 16 **or disabled** | Counts only children under 16 | Parents caring for a disabled adult child lose spouse-with-child or mother's/father's benefits too early | Ignore, make note |
-| 8 | §215(b)(2)(B) | Years wholly in a disability period are excluded from the survivor computation | For a disabled worker who dies, uses the higher of the death PIA (computed without the freeze) and the frozen disability PIA | Close to the statute, but not the statute's computation; can understate survivors in edge cases | Explain more (see below) |
+| 8 | §215(b)(2)(B) | Years wholly in a disability period are excluded from the survivor computation | For a disabled worker who dies, uses the higher of the death PIA (computed without the freeze) and the frozen disability PIA | Close to the statute, but not the statute's computation; can understate survivors in edge cases | Explain more (see below), then Fix: done |
 | 9 | §203(a)(3) | A child entitled on two records has a combined family maximum | Each child is on one record | Families with two insured parents: children's benefits may be understated | Ignore, make note |
 
 The runner also uses the disability family maximum after conversion; that is difference 1 above, inherited from `disabled_worker()`.

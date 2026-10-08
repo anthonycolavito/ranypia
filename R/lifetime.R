@@ -25,6 +25,9 @@
 #' disability is used only if it starts before `claim_age`. People with a
 #' child under 16 in care are assumed to file as soon as they can.
 #'
+#' A disabled worker's survivors get the PIA computed with the period of
+#' disability excluded (see [deceased_worker()]).
+#'
 #' Survivors need the worker entitled or fully insured at death for a
 #' widow(er)'s benefit, and fully or currently insured ([currently_insured()])
 #' for child's and mother's or father's benefits.
@@ -137,7 +140,6 @@ lifetime_benefits <- function(earnings, people, children = NULL, months = 1:12,
   di_ent <- month_index(ifelse(is.na(oy), 2000, oy), ifelse(is.na(om), 1, om)) +
     ifelse(od == 1, 0, 1) + 5
   di <- !is.na(oy) & di_ent - k < nra & di_ent < death & (is.na(claim) | di_ent <= k + claim)
-  di_pia_elig <- di_elig <- rep(NA_real_, np)
   if (any(di)) {
     w <- which(di)
     ent <- from_month_index(di_ent[w])
@@ -145,8 +147,6 @@ lifetime_benefits <- function(earnings, people, children = NULL, months = 1:12,
                           birth_day = bd[w], onset_day = od[w],
                           entitlement = list(ent$year, ent$month), policy = policy)
     di[w] <- d0$insured
-    di_pia_elig[w] <- d0$pia_elig
-    di_elig[w] <- d0$elig_year
   }
   # retirement: insured at the claim, and the claiming factor
   ret <- !di & !is.na(claim)
@@ -333,25 +333,17 @@ lifetime_benefits <- function(earnings, people, children = NULL, months = 1:12,
     res <- run_rows(dead, function(x) {
       w <- rj[x]
       ben <- from_month_index(rt[x])
+      # a disabled worker's survivors: the computation with the freeze
+      dw <- di[w] & entitled[w]
+      ent <- from_month_index(di_ent[w])
       deceased_worker(M[w, , drop = FALSE], by[w], bm[w], dmi$year[w],
                       list(ben$year, ben$month), first_year = first, birth_day = bd[w],
+                      onset_year = ifelse(dw, oy[w], NA), onset_month = ifelse(dw, om[w], NA),
+                      onset_day = od[w], entitlement = list(ent$year, ent$month),
                       policy = policy)
     })
     rpia[dead] <- res$pia
     rmfb[dead] <- res$mfb
-    # a disabled worker's survivors keep the PIA computed with the freeze,
-    # with the regular family maximum on it, if higher
-    dd <- dead[di[rj[dead]] & entitled[rj[dead]]]
-    if (length(dd)) {
-      ben <- from_month_index(rt[dd])
-      w <- rj[dd]
-      p_di <- apply_colas(di_pia_elig[w], di_elig[w], ben$year, ben$month, policy)
-      m_di <- apply_colas(family_max(di_pia_elig[w], di_elig[w], policy), di_elig[w],
-                          ben$year, ben$month, policy)
-      higher <- p_di > rpia[dd]
-      rpia[dd] <- ifelse(higher, p_di, rpia[dd])
-      rmfb[dd] <- ifelse(higher, m_di, rmfb[dd])
-    }
   }
 
   # ---- families: one per record and month ----

@@ -178,3 +178,20 @@ test_that("a currently insured worker's children and widow get benefits, the wid
   expect_identical(unique(mom$aux_type), "parent_with_child")
   expect_false(any(lb$aux_type[lb$id == 2] %in% "widow"))
 })
+
+test_that("a disabled worker's widow is paid on the PIA with the freeze", {
+  people <- data.frame(id = 1:2, birth_year = c(1970, 1968), birth_month = 3,
+                       death_age = c(58, 90) * 12, spouse_id = c(2, 1),
+                       onset_year = c(2015, NA), onset_month = c(6, NA))
+  e <- long(rec(1, 1992:2014, 1))
+  lb <- lifetime_benefits(e, people, months = 6)
+  w <- lb[lb$id == 2 & lb$benefit_year == 2030, ]
+  expect_identical(w$aux_type, "widow")
+  d <- deceased_worker(setNames(awi(1992:2014), 1992:2014), 1970, 3, 2028, list(2030, 6),
+                       onset_year = 2015, onset_month = 6)
+  expect_identical(d$method, "disability_freeze")
+  fb <- family_benefits(d$pia, d$mfb,
+                        list(auxiliary("widow", 1968, 3, claim_age = 60 * 12,
+                                       worker_factor = 1)), 2030, 6, survivor = TRUE)
+  expect_identical(w$aux_benefit, fb$benefit)
+})
