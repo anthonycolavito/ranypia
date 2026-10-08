@@ -70,6 +70,26 @@ Built as one function, `lifetime_benefits()` in `R/lifetime.R`, rather than sepa
 
 Not covered (also in the function's documentation): the earnings test, divorce, remarriage, marriage-length requirements, disabled widow(er)s, disability recovery, a child on more than one record, currently insured status, and insured status gained after the claim month.
 
+## Backlog from the Social Security Act audit
+
+Decided 2026-10-08 in `docs/audits/2026-10-08-ssact-audit.md` (item numbers refer to it).
+
+Fix now (branch `audit-fixes`):
+
+- [ ] #1 Regular family maximum for a disabled worker's family from the month the benefit converts to retirement at FRA (§203(a)(6); POMS RS 00615.742).
+- [ ] #5 Child's and mother's/father's benefits when the deceased worker was currently insured (§202(d), (g); §214(b)).
+- [ ] #14 Replace the pre-1978 quarters-of-coverage approximation with actual historical data; update the README and help pages.
+
+Incorporate later, each its own phase:
+
+- [ ] The earnings test, §203(b) and (f), with the reduction-factor adjustment at FRA, §202(q)(7).
+- [ ] Divorced and surviving divorced spouses (outside the family maximum, §203(a)(3)(C)), remarriage, and marriage-length requirements (§216(b)–(g)).
+- [ ] Pre-1979 computation methods.
+- [ ] The lump-sum death payment, §202(i).
+- [ ] Payable benefits after trust fund depletion, alongside scheduled benefits.
+
+Noted, no change planned: #2 COLA stabilizer, #7 disabled child in care, #9 combined family maximum, #10–#13 SSA practice. Ignored: #3, #4, #6 and totalization.
+
 ## Out of scope unless the user says otherwise
 
-Pre-1979 computation methods, totalization, the GPO/WEP (repealed after December 2023), lump-sum death payment, and benefit taxation (§86).
+Totalization, the GPO/WEP (repealed after December 2023), and benefit taxation (§86). Pre-1979 methods and the lump-sum death payment moved to the backlog above.
