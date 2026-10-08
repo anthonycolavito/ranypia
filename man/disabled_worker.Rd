@@ -24,15 +24,11 @@ disabled_worker(
 \item{earnings}{A matrix (rows = workers), a named vector, or a long data
 frame with \code{id}, \code{year}, \code{earnings}.}
 
-\item{birth_year}{Date of birth.}
-
-\item{birth_month}{Date of birth.}
+\item{birth_year, birth_month, birth_day}{Date of birth.}
 
 \item{onset_year, onset_month, onset_day}{Date of disability onset.}
 
 \item{first_year}{First year of a matrix without year column names.}
-
-\item{birth_day}{Date of birth.}
 
 \item{entitlement, benefit}{Optional \code{list(year, month)}.}
 
@@ -64,4 +60,10 @@ the "non-freeze" one, which takes the waiting period's first year as the
 eligibility year and counts every year's earnings through the year before
 the benefit month, if the worker is insured on that basis too. \code{insured}
 is disability insured status (\code{\link[=disability_insured]{disability_insured()}}).
+
+For benefit months from normal retirement age, when the benefit has
+converted to a retirement benefit, \code{mfb} is the regular family maximum on
+the same PIA, not the disability maximum (section 203(a)(6); POMS RS
+00615.742). This is the one place ranypia departs from AnyPIA and
+pyanypia, which keep the disability maximum.
 }

@@ -46,3 +46,18 @@ test_that("bad inputs are refused", {
   expect_error(aime(c("2000" = 1), 2030, 0), "comp_years: must be at least 1")
   expect_error(aime(c("2000" = -1), 2030, 35), "earnings: negative")
 })
+
+test_that("currently insured: 6 QCs in the 13 quarters ending with the given quarter", {
+  recent <- setNames(rep(30000, 4), 2026:2029)
+  expect_true(currently_insured(recent, 2030, 6))
+  expect_false(fully_insured(recent, 1990, 1, 2030, 6))
+  # the same four years, ending five years before: not currently insured
+  expect_false(currently_insured(setNames(rep(30000, 4), 2021:2024), 2030, 6))
+  # QCs in the window's first year count only from its first quarter: a
+  # window ending 2031 Q3 starts 2028 Q3, leaving 2 + 4 = 6 (just enough);
+  # ending 2031 Q4, it starts 2028 Q4, leaving 1 + 4 = 5
+  two <- setNames(c(30000, 30000), 2028:2029)
+  expect_true(currently_insured(two, 2031, 9))
+  expect_false(currently_insured(two, 2031, 12))
+  expect_identical(currently_insured(rbind(recent, recent * 0), 2030, 6), c(TRUE, FALSE))
+})

@@ -243,6 +243,37 @@ fully_insured <- function(earnings, birth_year, birth_month, through_year,
   fully_insured_at(e$m, qcs(e$m, e$first, policy), e$first, ky, q, rep(NO_FREEZE, n))
 }
 
+#' Currently insured status
+#'
+#' Whether a worker is currently insured as of a month: at least 6 quarters
+#' of coverage in the 13-quarter period ending with that month's quarter
+#' (section 214(b)), such as the quarter of death. A deceased worker who was
+#' only currently insured still gives their children child's benefits and a
+#' surviving parent caring for a child mother's or father's benefits
+#' (section 202(d), (g)), but not widow(er)'s benefits, which need fully
+#' insured status. Quarters in a period of disability, which extend the
+#' window, are not excluded.
+#'
+#' @inheritParams fully_insured
+#' @param through_year,through_month The month whose quarter ends the
+#'   13-quarter period.
+#' @return Logical, one per worker.
+#' @export
+#' @examples
+#' # four years of work ending the year before death: currently insured,
+#' # though far short of fully insured
+#' e <- setNames(rep(30000, 4), 2026:2029)
+#' currently_insured(e, 2030, 6)
+#' fully_insured(e, 1990, 1, 2030, 6)
+currently_insured <- function(earnings, through_year, through_month = 12, first_year = NULL,
+                              policy = current_law()) {
+  e <- as_earnings(earnings, first_year)
+  n <- nrow(e$m)
+  q <- 4 * rows_of(through_year, "through_year", n) +
+    (rows_of(through_month, "through_month", n) - 1) %/% 3
+  accumulate(qcs(e$m, e$first, policy), e$first, q - 12, q) >= 6
+}
+
 age21_quarter <- function(ky, km) 4 * (ky + 21) + (km - 1) %/% 3 + 1
 
 # Whether the window ending d2 holds QCs in at least half its quarters, and

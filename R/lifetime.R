@@ -25,11 +25,14 @@
 #' disability is used only if it starts before `claim_age`. People with a
 #' child under 16 in care are assumed to file as soon as they can.
 #'
+#' Survivors need the worker entitled or fully insured at death for a
+#' widow(er)'s benefit, and fully or currently insured ([currently_insured()])
+#' for child's and mother's or father's benefits.
+#'
 #' Not covered: the earnings test, divorce, remarriage, the marriage-length
 #' requirements, disabled widow(er)s, disability recovery, a child entitled
-#' on more than one record, currently insured status (survivors need the
-#' worker fully insured at death, or entitled), and a worker who becomes
-#' insured only after the month they claim.
+#' on more than one record, and a worker who becomes insured only after the
+#' month they claim.
 #'
 #' @param earnings Earnings for the people in `people`: a long data frame
 #'   with `id`, `year`, `earnings` (people with no rows have no earnings), or
@@ -160,10 +163,14 @@ lifetime_benefits <- function(earnings, people, children = NULL, months = 1:12,
   own_start[own_start >= death] <- Inf
   entitled <- is.finite(own_start)
 
-  # survivors: the worker was entitled, or fully insured at death
+  # survivors: widow(er)s need the worker entitled, or fully insured at
+  # death; children and a parent caring for a child need fully or currently
+  # insured (sec. 202(d), (g))
   dmi <- from_month_index(death)
   surv_ok <- entitled | fully_insured(M, by, bm, dmi$year, dmi$month, first_year = first,
                                       birth_day = bd, policy = policy)
+  surv_child <- surv_ok | currently_insured(M, dmi$year, dmi$month, first_year = first,
+                                            policy = policy)
   # the deceased worker's factor for a widow(er): the claiming factor with
   # every credit earned before death; a worker past NRA who never filed gets
   # credits up to the month of death
@@ -198,7 +205,7 @@ lifetime_benefits <- function(earnings, people, children = NULL, months = 1:12,
                           as_whole("birth_day", ccol("birth_day", 15)))
     ck <- month_index(ckb$year, ckb$month)
     c_end <- ck + as_num("end_age", ccol("end_age", 216))
-    rec_from <- ifelse(entitled, own_start, ifelse(surv_ok, death, Inf))
+    rec_from <- ifelse(entitled, own_start, ifelse(surv_child, death, Inf))
     c_start <- pmax(rec_from[cp], ck)
   } else {
     cp <- ck <- c_end <- c_start <- numeric()
@@ -300,7 +307,7 @@ lifetime_benefits <- function(earnings, people, children = NULL, months = 1:12,
   aux_type[sr] <- ifelse(live_ent & care, "spouse_with_child",
                   ifelse(live_ent & st >= spousal_start[si], "spouse",
                   ifelse(!alive & st >= widow_start[si], "widow",
-                  ifelse(!alive & surv_ok[sj] & care, "parent_with_child", NA))))
+                  ifelse(!alive & surv_child[sj] & care, "parent_with_child", NA))))
   aux_claim[sr] <- ifelse(aux_type[sr] %in% "spouse", spousal_start[si] - k[si],
                    ifelse(aux_type[sr] %in% "widow", widow_start[si] - k[si], 0))
 

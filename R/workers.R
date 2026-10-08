@@ -190,6 +190,12 @@ retired_worker <- function(earnings, birth_year, birth_month, claim_age, first_y
 #' the benefit month, if the worker is insured on that basis too. `insured`
 #' is disability insured status ([disability_insured()]).
 #'
+#' For benefit months from normal retirement age, when the benefit has
+#' converted to a retirement benefit, `mfb` is the regular family maximum on
+#' the same PIA, not the disability maximum (section 203(a)(6); POMS RS
+#' 00615.742). This is the one place ranypia departs from AnyPIA and
+#' pyanypia, which keep the disability maximum.
+#'
 #' @inheritParams retired_worker
 #' @param onset_year,onset_month,onset_day Date of disability onset.
 #' @param entitlement,benefit Optional `list(year, month)`.
@@ -274,7 +280,8 @@ disabled_worker <- function(earnings, birth_year, birth_month, onset_year, onset
 
   pias <- lapply(methods, function(x) apply_colas(x$pia, x$elig, ben$year, ben$month, policy))
   yoc <- years_of_coverage(m, through, first_year = first, policy = policy)
-  sm_pia <- special_minimum_pia(yoc, ben$year, ben$month, policy)$pia
+  sm <- special_minimum_pia(yoc, ben$year, ben$month, policy)
+  sm_pia <- sm$pia
   # the highest PIA wins, ties to the earlier method; the special minimum
   # ranks after the ordinary computation and before the others
   high <- pias[[1]]
@@ -306,6 +313,18 @@ disabled_worker <- function(earnings, birth_year, birth_month, onset_year, onset
   takes_top <- sm_wins | winner == length(methods)
   mfb_v <- ifelse(takes_top, pick(mfbs, top), pick(mfbs, winner))
   nra <- normal_retirement_age(by, bm, bd, policy)
+  # From the month the benefit converts to a retirement benefit (NRA), the
+  # disability maximum no longer applies (sec. 203(a)(6) covers only months
+  # of disability entitlement): the regular maximum on the same PIA does
+  # (POMS RS 00615.742). AnyPIA keeps the disability maximum.
+  converted <- ben_idx >= month_index(kb$year, kb$month) + nra
+  if (any(converted)) {
+    w_elig <- pick(lapply(methods, `[[`, "elig"), winner)
+    w_pia <- pick(lapply(methods, `[[`, "pia"), winner)
+    regular <- apply_colas(family_max(w_pia, w_elig, policy), w_elig, ben$year, ben$month,
+                           policy)
+    mfb_v <- ifelse(converted, ifelse(sm_wins, sm$mfb, regular), mfb_v)
+  }
   unrounded <- round_benefit(1 * high, cola_year(ben$year, ben$month))
   worker_tibble(ids, elig_year = pick(lapply(methods, `[[`, "elig"), winner),
                 aime = pick(lapply(methods, `[[`, "aime"), winner),

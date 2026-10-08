@@ -134,7 +134,7 @@ those is usable alone.
 | `normal_retirement_age()`, `earliest_claim_age()` | in months |
 | `benefit_factor()`, `early_reduction_factor()`, `delayed_credit_factor()` | claiming early or late |
 | `monthly_benefit()` | factor × PIA, rounded as SSA rounds it |
-| `quarters_of_coverage()`, `fully_insured()`, `disability_insured()` | insured status |
+| `quarters_of_coverage()`, `fully_insured()`, `currently_insured()`, `disability_insured()` | insured status |
 | `years_of_coverage()`, `special_minimum_pia()` | the special minimum |
 | `childcare_aime()` | the AIME with child-care dropout years |
 | `auxiliary()`, `family_benefits()` | spouse, child and survivor benefits under the family maximum |
@@ -175,7 +175,10 @@ higher_max <- policy_with_series(current_law(), "taxmax", c("2030" = 250000))
 
 ## What is exact, and what is not covered
 
-The same as pyanypia. Results are exact for wage-indexed computations with
+The same as pyanypia, with one deliberate exception: after a disabled
+worker's benefit converts to a retirement benefit at NRA, `disabled_worker()`
+uses the regular family maximum, as section 203(a)(6) requires, where AnyPIA
+keeps the disability maximum. Results are exact for wage-indexed computations with
 eligibility in 1979 or later: retirement; disability, with the child-care
 dropout years and the non-freeze computation; and survivors, with the
 re-indexed widow(er)'s guarantee. The special minimum and the WEP are also

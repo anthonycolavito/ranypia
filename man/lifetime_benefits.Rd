@@ -78,11 +78,14 @@ period and converts to a retirement benefit at normal retirement age;
 disability is used only if it starts before \code{claim_age}. People with a
 child under 16 in care are assumed to file as soon as they can.
 
+Survivors need the worker entitled or fully insured at death for a
+widow(er)'s benefit, and fully or currently insured (\code{\link[=currently_insured]{currently_insured()}})
+for child's and mother's or father's benefits.
+
 Not covered: the earnings test, divorce, remarriage, the marriage-length
 requirements, disabled widow(er)s, disability recovery, a child entitled
-on more than one record, currently insured status (survivors need the
-worker fully insured at death, or entitled), and a worker who becomes
-insured only after the month they claim.
+on more than one record, and a worker who becomes insured only after the
+month they claim.
 }
 \examples{
 awi <- function(years, scale = 1) current_law()$awi[years - 1936] * scale

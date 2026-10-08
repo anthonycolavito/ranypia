@@ -1,5 +1,13 @@
 # ranypia 0.2.0
 
+* `disabled_worker()`: from the month the benefit converts to a retirement
+  benefit at NRA, `mfb` is the regular family maximum on the same PIA
+  instead of the disability maximum (section 203(a)(6); POMS RS 00615.742).
+  This is a deliberate departure from AnyPIA and pyanypia, which keep the
+  disability maximum; results before NRA are unchanged.
+* New `currently_insured()` (section 214(b)). `lifetime_benefits()` now pays
+  children and a parent caring for a child when the deceased worker was
+  only currently insured, as section 202(d) and (g) allow.
 * New `benefit_stream()`: a retired worker's benefit every year (or every
   month) from the claim month to a final age, each row exactly what
   `retired_worker()` gives with that `benefit_age`. End ages can differ by

@@ -161,3 +161,20 @@ test_that("inputs are checked", {
   expect_error(lifetime_benefits(e, p3), "survivor_claim_age")
   expect_error(lifetime_benefits(e, p3[, 1:3]), "death_age")
 })
+
+test_that("a currently insured worker's children and widow get benefits, the widow not at 60", {
+  # four years of work (16 QCs) ending at 40: fully insured needs 18, but he
+  # is currently insured, so the children and their mother are paid (sec.
+  # 202(d), (g)); a widow's benefit at 60 needs fully insured status
+  people <- data.frame(id = 1:2, birth_year = c(1990, 1992), birth_month = 3,
+                       death_age = c(40, 85) * 12, spouse_id = c(2, 1))
+  kids <- data.frame(id = 101, parent_id = 1, birth_year = 2024, birth_month = 5)
+  e <- long(rec(1, 2026:2029, 1))
+  expect_false(fully_insured(setNames(awi(2026:2029), 2026:2029), 1990, 3, 2030, 3))
+  lb <- lifetime_benefits(e, people, children = kids, months = 6)
+  expect_true(all(lb$aux_benefit[lb$id == 101] > 0))
+  expect_equal(range(lb$benefit_year[lb$id == 101]), c(2030, 2041))
+  mom <- lb[lb$id == 2 & !is.na(lb$aux_type), ]
+  expect_identical(unique(mom$aux_type), "parent_with_child")
+  expect_false(any(lb$aux_type[lb$id == 2] %in% "widow"))
+})
