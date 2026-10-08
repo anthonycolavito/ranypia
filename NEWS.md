@@ -1,3 +1,16 @@
+# ranypia 0.2.0
+
+* New `benefit_stream()`: a retired worker's benefit every year (or every
+  month) from the claim month to a final age, each row exactly what
+  `retired_worker()` gives with that `benefit_age`. End ages can differ by
+  worker, and long runs are computed in chunks.
+* `people =` may now hold several rows per id (one worker under several
+  claim ages, say). Each row gets its own output row, on that id's earnings;
+  before, only the first row for each id was used, silently. Output stays in
+  earnings order, then people order within an id. Applies to
+  `retired_worker()`, `disabled_worker()` (including a `childcare` matrix)
+  and `deceased_worker()`.
+
 # ranypia 0.1.1
 
 * Two fixes carried over from pyanypia 0.3.1, found by comparing with SSA's

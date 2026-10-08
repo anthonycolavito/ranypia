@@ -1,6 +1,6 @@
 Package: ranypia
 Title: Social Security Benefit-Formula Functions, Penny-Exact with SSA's AnyPIA
-Version: 0.1.1
+Version: 0.2.0
 Authors@R: person("Anthony", "Colavito", email = "colavitoanthony@gmail.com",
     role = c("aut", "cre"))
 Description: Vectorized functions for the Social Security benefit formula:

@@ -74,6 +74,27 @@ throughout, looping only over years, never over people. A wide matrix (one
 row per worker, columns named by year) works too, and so does a named
 vector for one worker.
 
+## Benefits across retirement
+
+`benefit_stream()` gives the benefit from the claim month to a final age
+(100 by default), one row a year or, with `step = 1`, every month. Each row
+is what `retired_worker()` gives in that month, so COLAs, rounding and
+recomputation for work after claiming are all included. `to_age` can vary
+by worker, for instance a simulated age at death:
+
+```r
+s <- benefit_stream(earnings, 1964, 6, claim_age = 67 * 12)
+#> one row per year: id or worker, claim_age, benefit_age, benefit_year,
+#> benefit_month, aime, pia, mfb, factor, benefit, method, insured
+
+# exact calendar-year totals
+m <- benefit_stream(earnings, 1964, 6, claim_age = 67 * 12, step = 1)
+tapply(m$benefit, m$benefit_year, sum)
+```
+
+With panel earnings, `people` may list the same id more than once (one row
+per claim age to compare, say); each row gets its own stream.
+
 ## The building blocks
 
 The one-call helpers at the bottom of this table chain the others. Each of
@@ -96,6 +117,7 @@ those is usable alone.
 | `widow_guarantee_pia()` | the re-indexed widow(er)'s guarantee |
 | `wep_pia()`, `gpo_offset()` | the repealed WEP and GPO, off by default |
 | `retired_worker()`, `disabled_worker()`, `deceased_worker()` | the whole chain in one call |
+| `benefit_stream()` | a retired worker's benefits from claiming to a final age |
 
 ## Conventions
 
