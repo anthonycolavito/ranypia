@@ -196,7 +196,9 @@ its `auxiliary()` argument is given.
 
 Not covered:
 
-- the pre-1979 computation methods
+- the pre-1979 computation methods: eligibility before 1979 is an error,
+  and workers born 1917-1921 get a warning that the transitional guarantee
+  (an old-law minimum that may exceed the wage-indexed PIA) is not computed
 - totalization, and the disability guarantee after a prior disability
 - divorced spouses, and the earnings test
 - **pre-1978 quarters of coverage**, in one respect: the policy stores the

@@ -21,15 +21,11 @@ retired_worker(
 \item{earnings}{A matrix (rows = workers), a named vector, or a long data
 frame with \code{id}, \code{year}, \code{earnings}.}
 
-\item{birth_year}{Date of birth.}
-
-\item{birth_month}{Date of birth.}
+\item{birth_year, birth_month, birth_day}{Date of birth.}
 
 \item{claim_age}{Age at entitlement, in months.}
 
 \item{first_year}{First year of a matrix without year column names.}
-
-\item{birth_day}{Date of birth.}
 
 \item{benefit_age}{Age in the benefit month (default \code{claim_age}).}
 
@@ -63,6 +59,11 @@ worker is fully insured.
 \details{
 A worker who is not fully insured is entitled to nothing; \code{insured}
 flags that, and the amounts are what AnyPIA reports regardless.
+
+Only the wage-indexed method is computed, so eligibility before 1979 is
+an error. Workers born 1917-1921 (reaching 62 in 1979-1983) were also
+guaranteed an old-law "transitional guarantee" PIA if higher; it is not
+computed, and a warning says so.
 }
 \examples{
 earnings <- setNames(rep(60000, 40), 1990:2029)

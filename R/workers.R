@@ -38,6 +38,23 @@ take_rows <- function(m, rows) {
   m[rows, , drop = FALSE]
 }
 
+# ranypia computes only the wage-indexed method of the 1977 amendments, for
+# eligibility in 1979 or later. Earlier eligibility is refused. Workers
+# reaching 62 in 1979-1983 (born 1917-1921) were also guaranteed the higher
+# of that and an old-law "transitional guarantee" computation, which is not
+# computed: warn that their PIA may be understated.
+check_method_years <- function(elig, year62, guarantee = TRUE) {
+  check("elig_year", elig < 1979,
+        "before 1979; the pre-1979 computation methods are not covered")
+  tg <- if (guarantee) sum(year62 >= 1979 & year62 <= 1983) else 0
+  if (tg > 0) {
+    rlang::warn(sprintf(paste0(
+      "%d worker(s) reach 62 in 1979-1983 (born 1917-1921): the transitional ",
+      "guarantee is not computed, so the PIA may be understated"), tg),
+      class = "ranypia_transitional_guarantee")
+  }
+}
+
 # One earnings row with several values of another argument means the same
 # worker under each: repeat the row.
 expand_rows <- function(m, ...) {
@@ -78,6 +95,11 @@ apply_wep_if_enabled <- function(pia_elig, aime_v, elig, m, first, last_year, be
 #'
 #' A worker who is not fully insured is entitled to nothing; `insured`
 #' flags that, and the amounts are what AnyPIA reports regardless.
+#'
+#' Only the wage-indexed method is computed, so eligibility before 1979 is
+#' an error. Workers born 1917-1921 (reaching 62 in 1979-1983) were also
+#' guaranteed an old-law "transitional guarantee" PIA if higher; it is not
+#' computed, and a warning says so.
 #'
 #' @param earnings A matrix (rows = workers), a named vector, or a long data
 #'   frame with `id`, `year`, `earnings`.
@@ -125,6 +147,7 @@ retired_worker <- function(earnings, birth_year, birth_month, claim_age, first_y
   ben <- from_month_index(k + ben_age)
   last_year <- ben$year - 1
   elig <- kb$year + 62
+  check_method_years(elig, kb$year + 62)
 
   comp <- computation_years(by, bm, elig, bd)
   aime_v <- aime(m, elig, comp, first_year = first, last_year = last_year, policy = policy)
@@ -250,6 +273,7 @@ disabled_worker <- function(earnings, birth_year, birth_month, onset_year, onset
   }
   # the ordinary computation: earnings after onset fall in the freeze
   elig <- pmin(kb$year + 62, oy)
+  check_method_years(elig, kb$year + 62, guarantee = FALSE)
   jan1 <- om == 1 & od == 1
   last_year <- pmin(through, ifelse(jan1, oy - 1, oy))
   ordinary <- wage_indexed(elig, last_year)
@@ -385,6 +409,7 @@ deceased_worker <- function(earnings, birth_year, birth_month, death_year, benef
   ben_m <- rows_of(benefit[[2]], "benefit_month", n)
   ky <- adjusted_birth(by, bm, bd)$year
   elig <- pmin(ky + 62, dy)
+  check_method_years(elig, elig)
   comp <- computation_years(by, bm, elig, bd, death_year = dy)
   aime_v <- aime(m, elig, comp, first_year = first, last_year = dy, policy = policy)
   pia_elig <- pia(aime_v, elig, policy)

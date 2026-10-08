@@ -89,7 +89,7 @@ Incorporate later, each its own phase:
 
 - [ ] The earnings test, §203(b) and (f), with the reduction-factor adjustment at FRA, §202(q)(7).
 - [ ] Divorced and surviving divorced spouses (outside the family maximum, §203(a)(3)(C)), remarriage, and marriage-length requirements (§216(b)–(g)).
-- [ ] Pre-1979 computation methods.
+- [ ] Pre-1979 computation methods, including the transitional guarantee for births 1917-1921. Until then, eligibility before 1979 errors and 1917-1921 births warn (added 2026-10-08).
 - [ ] The lump-sum death payment, §202(i).
 - [ ] Payable benefits after trust fund depletion, alongside scheduled benefits.
 

@@ -15,6 +15,10 @@
   higher PIA is used, with the regular family maximum. `lifetime_benefits()`
   uses it for every disabled worker's survivors, replacing its earlier
   approximation.
+* The one-call functions now refuse eligibility before 1979, which they
+  used to compute silently with the wrong (wage-indexed) method, and warn
+  for workers born 1917-1921 that the transitional guarantee is not
+  computed.
 * `lifetime_benefits()` pays disabled widow(er)s aged 50 to 59 (section
   202(e)(1)(B)(ii)): disabled within the prescribed period, after a
   five-month waiting period, converting to a widow(er)'s benefit at 60.
