@@ -32,3 +32,12 @@ test_that("default entitlement follows the waiting period", {
   b <- disabled_worker(setNames(rep(50000, 21), 2000:2020), 1975, 3, 2020, 6)
   expect_identical(b$elig_year, 2020)
 })
+
+test_that("disabled_worker matches pyanypia past NRA, out to age 100", {
+  fx <- fixture("disabled_lifetime")
+  i <- fx$inputs
+  age <- (i$ben_year * 12 + i$ben_month) - (i$birth_year * 12 + i$birth_month)
+  expect_true(mean(age >= 67 * 12) > 0.5)
+  got <- run_fixture("disabled_lifetime", TRUE)
+  expect_equal(nrow(got), 300)
+})

@@ -37,10 +37,12 @@ Checked against the code on 2026-10-08:
 
 `disabled_worker()` already takes `benefit = list(year, month)` with vectors (checked: 24 benefit months in one call work).
 
-- [ ] Add `disabled_stream()` in `R/stream.R`, mirroring `benefit_stream()`: rows from entitlement (default: onset + 5-month waiting period, as `disabled_worker()` computes it) to `to_age`, every `step` months; `childcare` follows the row map.
-- [ ] Conversion at NRA: a disabled worker converts to a retired-worker benefit at NRA with the same PIA and no reduction. Verify `disabled_worker()` gives the right amount past NRA by comparing with pyanypia at a handful of ages; add a `type` column (`"disabled"` before NRA, `"retired"` from NRA).
+- [x] Add `disabled_stream()` in `R/stream.R`, mirroring `benefit_stream()`: rows from entitlement (default: onset + 5-month waiting period, as `disabled_worker()` computes it) to `to_age`, every `step` months; `childcare` follows the row map.
+- [x] Conversion at NRA: a disabled worker converts to a retired-worker benefit at NRA with the same PIA and no reduction. Verify `disabled_worker()` gives the right amount past NRA by comparing with pyanypia at a handful of ages; add a `type` column (`"disabled"` before NRA, `"retired"` from NRA).
 - [ ] **Ask:** recovery from disability (benefits stop) — out of scope, or a `recovery_age` argument?
-- [ ] Tests: each row equals `disabled_worker()` at that month; conversion month; chunking; panel with `people`.
+- [x] Tests: each row equals `disabled_worker()` at that month; conversion month; chunking; panel with `people`.
+
+*Done 2026-10-08:* `disabled_worker()` matched pyanypia to the cent on 400 random cases with benefit months to age 100, and a 300-case fixture (`disabled_lifetime.json`, from `tools/make_fixtures.py`) now locks that in. Recovery was not added; a per-worker `to_age` ends a stream early in the meantime.
 
 ## Phase 2: Missing statutory rules
 

@@ -92,6 +92,10 @@ m <- benefit_stream(earnings, 1964, 6, claim_age = 67 * 12, step = 1)
 tapply(m$benefit, m$benefit_year, sum)
 ```
 
+`disabled_stream()` does the same for a disabled worker, from entitlement
+(after the five-month waiting period) to a final age, with a `type` column
+that switches from `"disabled"` to `"retired"` at NRA.
+
 With panel earnings, `people` may list the same id more than once (one row
 per claim age to compare, say); each row gets its own stream.
 
@@ -117,7 +121,7 @@ those is usable alone.
 | `widow_guarantee_pia()` | the re-indexed widow(er)'s guarantee |
 | `wep_pia()`, `gpo_offset()` | the repealed WEP and GPO, off by default |
 | `retired_worker()`, `disabled_worker()`, `deceased_worker()` | the whole chain in one call |
-| `benefit_stream()` | a retired worker's benefits from claiming to a final age |
+| `benefit_stream()`, `disabled_stream()` | a retired or disabled worker's benefits to a final age |
 
 ## Conventions
 

@@ -237,6 +237,32 @@ for name, cc_flag, seed, pick in (
                            childcare=cc if cc_flag else None)
     write(name, {"inputs": ins, "outputs": benefit_dict(b)})
 
+# ---- disabled workers past NRA: benefit months out to age 100, after the
+# conversion to a retirement benefit (the cases above stop before 62) ----
+r = rng(31)
+cases = disabled_cases(r, 300, childcare=True)
+mat, first = as_matrix(cases)
+cc = np.zeros_like(mat, dtype=bool)
+for i, c in enumerate(cases):
+    for y in c.extra.get("childcare", ()):
+        cc[i, y - first] = True
+ent = column(cases, lambda c: c.extra["ent"])
+k = column(cases, lambda c: adjusted_birth_index(c.birth))
+ben = np.maximum(ent, k + r.integers(62 * 12, 100 * 12 + 1, len(cases)))
+ins = {"earnings": mat, "first_year": first, "childcare": cc,
+       "birth_year": column(cases, lambda c: c.birth[0]),
+       "birth_month": column(cases, lambda c: c.birth[1]),
+       "onset_year": column(cases, lambda c: c.extra["onset"][0]),
+       "onset_month": column(cases, lambda c: c.extra["onset"][1]),
+       "onset_day": column(cases, lambda c: c.extra["onset"][2]),
+       "ent_year": ent // 12, "ent_month": ent % 12 + 1,
+       "ben_year": ben // 12, "ben_month": ben % 12 + 1}
+b = pa.disabled_worker(mat, ins["birth_year"], ins["birth_month"], ins["onset_year"],
+                       ins["onset_month"], first_year=first, onset_day=ins["onset_day"],
+                       entitlement=(ins["ent_year"], ins["ent_month"]),
+                       benefit=(ins["ben_year"], ins["ben_month"]), childcare=cc)
+write("disabled_lifetime", {"inputs": ins, "outputs": benefit_dict(b)})
+
 # ---- families ----
 KIND = {"B": "spouse", "B2": "spouse_with_child", "C1": "child", "C2": "child",
         "D": "widow", "W": "disabled_widow", "E": "parent_with_child"}

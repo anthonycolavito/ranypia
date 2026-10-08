@@ -10,6 +10,11 @@
   earnings order, then people order within an id. Applies to
   `retired_worker()`, `disabled_worker()` (including a `childcare` matrix)
   and `deceased_worker()`.
+* New `disabled_stream()`: a disabled worker's benefit from entitlement to a
+  final age, each row exactly what `disabled_worker()` gives that month,
+  with a `type` column marking the conversion to a retirement benefit at
+  NRA. A new fixture checks `disabled_worker()` against pyanypia for
+  benefit months out to age 100 (the earlier fixtures stopped before 62).
 
 # ranypia 0.1.1
 
