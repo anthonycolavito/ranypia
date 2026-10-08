@@ -11,7 +11,11 @@ auxiliary(
   claim_age = 0,
   birth_day = 15,
   present = TRUE,
-  guarantee_pia = NULL
+  guarantee_pia = NULL,
+  worker_factor = NULL,
+  own_pia = NULL,
+  own_factor = 1,
+  end_age = NULL
 )
 }
 \arguments{
@@ -29,6 +33,32 @@ entitlement; matters only for spouses and widow(er)s.}
 \item{guarantee_pia}{A widow(er)'s re-indexed guarantee PIA in the
 benefit month (\code{\link[=widow_guarantee_pia]{widow_guarantee_pia()}}); the higher of it and the
 worker's PIA is the base of their benefit.}
+
+\item{worker_factor}{For a widow(er): the deceased worker's claiming
+factor (\code{factor} from \code{\link[=retired_worker]{retired_worker()}}), or \code{NA} if the worker was never
+entitled. Below 1 (the worker claimed early), the widow(er)'s limit
+applies: their benefit is at most the larger of the worker's reduced
+benefit and 82.5\% of the PIA (POMS RS 00615.320). Above 1 (delayed
+credits), the worker's benefit with credits becomes the base of the
+widow(er)'s benefit when it is higher than the PIA (RS 00615.706). For a
+worker who died past NRA without claiming, use the factor for a claim in
+the month of death, which counts credits up to but not including it.}
+
+\item{own_pia, own_factor}{Dual entitlement: the member's own PIA in the
+benefit month, on their own record, and their own claiming factor
+(default 1; \code{factor} from \code{\link[=retired_worker]{retired_worker()}}). \code{NA} or 0 means no own
+benefit. Only the excess over the own benefit is paid on this record
+(POMS RS 00615.020): a spouse gets the full spouse benefit less the own
+PIA, then reduced for age; a widow(er) gets the reduced widow(er)'s
+benefit less the reduced own benefit; anyone else (a spouse with a child
+in care, a child, a parent) gets their benefit less their own benefit.}
+
+\item{end_age}{Age, in months, from which the member is no longer
+entitled (\code{NULL}, the default, never ends). A child's benefit ends with
+the month before they attain 18 (\code{end_age = 216}), or 19 for a
+full-time elementary or secondary student, and continues for a child
+disabled before 22 (20 CFR 404.352); a spouse or parent with a child in
+care stops when the youngest child attains 16.}
 }
 \value{
 A \code{ranypia_auxiliary}.
@@ -39,4 +69,8 @@ over families.
 }
 \examples{
 auxiliary("spouse", 1966, 3, claim_age = 64 * 12)
+# a widow whose husband claimed early, with her own record
+auxiliary("widow", 1966, 3, claim_age = 67 * 12, worker_factor = 0.7,
+          own_pia = 900, own_factor = 0.75)
+auxiliary("child", 2015, 5, end_age = 18 * 12)
 }

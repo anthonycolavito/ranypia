@@ -29,7 +29,8 @@ family.}
 \value{
 A long tibble, one row per family and member: \code{family}, \code{member},
 \code{kind}, \code{full}, \code{after_max}, \code{reduction_factor}, \code{benefit} (whole
-dollars).
+dollars payable on this record; for a dually entitled member, the excess
+over their own benefit).
 }
 \description{
 Benefits for a worker's family in a benefit month, from the worker's PIA
@@ -39,6 +40,16 @@ Each member's full benefit is a share of the PIA; if together they exceed
 what the family maximum leaves (all of it for survivors, the excess over
 the worker's PIA otherwise) all are cut in proportion; then spouses and
 widow(er)s are reduced for age.
+}
+\details{
+Three rules beyond AnyPIA follow the statute and SSA's POMS (see
+\code{\link[=auxiliary]{auxiliary()}}): the widow(er)'s limit and the deceased worker's delayed
+credits (\code{worker_factor}); dual entitlement (\code{own_pia}), where \code{benefit}
+is only what is payable on this record; and members who stop at an
+\code{end_age}. For benefit months from October 1999, a dually entitled
+member counts against the family maximum only for what is payable to
+them, and the others share the rest up to their full benefits (POMS RS
+00615.768). Without those arguments, results are exactly AnyPIA's.
 }
 \examples{
 family_benefits(2000, 3500, list(auxiliary("child"), auxiliary("child")),

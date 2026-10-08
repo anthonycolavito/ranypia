@@ -15,6 +15,18 @@
   with a `type` column marking the conversion to a retirement benefit at
   NRA. A new fixture checks `disabled_worker()` against pyanypia for
   benefit months out to age 100 (the earlier fixtures stopped before 62).
+* `family_benefits()` gains four statutory rules, each off unless its
+  `auxiliary()` argument is given, so existing results are unchanged:
+  * `worker_factor` for a widow(er): the widow(er)'s limit when the worker
+    claimed early (the larger of the worker's reduced benefit and 82.5% of
+    the PIA, POMS RS 00615.320), and the worker's delayed credits in the
+    widow(er)'s base (RS 00615.706).
+  * `own_pia` and `own_factor`: dual entitlement (RS 00615.020). Only the
+    excess over the member's own benefit is paid, and from October 1999 the
+    other members share the room that frees under the family maximum
+    (RS 00615.768).
+  * `end_age`: a member stops being paid from that age, such as a child at
+    18 (20 CFR 404.352).
 
 # ranypia 0.1.1
 

@@ -160,6 +160,14 @@ dropout years and the non-freeze computation; and survivors, with the
 re-indexed widow(er)'s guarantee. The special minimum and the WEP are also
 exact.
 
+`family_benefits()` also applies rules AnyPIA does not model, written from
+the statute and SSA's POMS and tested against POMS's worked examples rather
+than against pyanypia: the widow(er)'s limit when the worker claimed early,
+the worker's delayed credits in a survivor's benefit, dual entitlement for
+a member with their own benefit (including its effect on the family
+maximum), and stop ages such as a child's 18th birthday. Each is off unless
+its `auxiliary()` argument is given.
+
 Not covered:
 
 - the pre-1979 computation methods
