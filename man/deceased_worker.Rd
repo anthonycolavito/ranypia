@@ -34,7 +34,9 @@ frame with \code{id}, \code{year}, \code{earnings}.}
 
 \item{people}{Optional data frame supplying any of the per-worker
 arguments as columns (explicit arguments win). With an \code{id} column and
-long earnings, rows are matched by id.}
+long earnings, rows are matched by id. Several rows may share an id
+(one worker under several claim ages, say); each gets its own output
+row, in earnings order and then people order.}
 
 \item{policy}{A \code{\link[=current_law]{current_law()}} policy.}
 }

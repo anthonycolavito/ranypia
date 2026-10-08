@@ -3,20 +3,39 @@
 
 # Fills the calling function's missing arguments from columns of `people`,
 # lining people up with the earnings rows when both carry ids.
+#
+# Returns list(ids, rows): `ids` labels each output row (NULL when unknown);
+# `rows` is NULL, or the earnings row each output row uses. Several people
+# rows may share an id (the same worker under different claim ages, say):
+# each becomes its own output row, on a copy of that id's earnings. Output
+# rows follow the earnings order, then people order within an id. People
+# rows whose id has no earnings are ignored, as before.
 fill_from_people <- function(people, supplied, names, env, ids) {
-  if (is.null(people)) return(NULL)
+  if (is.null(people)) return(list(ids = NULL, rows = NULL))
   if (!is.data.frame(people)) abort_field("people", "must be a data frame")
+  rows <- NULL
   if (!is.null(ids) && "id" %in% names(people)) {
-    rows <- match(ids, people$id)
-    if (anyNA(rows)) {
-      abort_field("people", sprintf("has no row for earnings id %s", ids[is.na(rows)][1]))
+    missing <- is.na(match(ids, people$id))
+    if (any(missing)) {
+      abort_field("people", sprintf("has no row for earnings id %s", ids[missing][1]))
     }
-    people <- people[rows, , drop = FALSE]
+    pos <- match(people$id, ids)
+    keep <- which(!is.na(pos))
+    keep <- keep[order(pos[keep])]  # order() is stable: ties keep people order
+    people <- people[keep, , drop = FALSE]
+    rows <- pos[keep]
   }
   for (nm in intersect(names, names(people))) {
     if (!nm %in% supplied) assign(nm, people[[nm]], envir = env)
   }
-  if ("id" %in% names(people)) people$id else NULL
+  list(ids = if ("id" %in% names(people)) people$id else NULL, rows = rows)
+}
+
+# Applies fill_from_people()'s row map to an earnings matrix, or to another
+# matrix shaped like it (such as `childcare`).
+take_rows <- function(m, rows) {
+  if (is.null(rows) || !is.matrix(m)) return(m)
+  m[rows, , drop = FALSE]
 }
 
 # One earnings row with several values of another argument means the same
@@ -70,7 +89,9 @@ apply_wep_if_enabled <- function(pia_elig, aime_v, elig, m, first, last_year, be
 #'   `policy$wep_enabled`.
 #' @param people Optional data frame supplying any of the per-worker
 #'   arguments as columns (explicit arguments win). With an `id` column and
-#'   long earnings, rows are matched by id.
+#'   long earnings, rows are matched by id. Several rows may share an id
+#'   (one worker under several claim ages, say); each gets its own output
+#'   row, in earnings order and then people order.
 #' @param policy A [current_law()] policy.
 #' @return A tibble with one row per worker: `elig_year`, `aime`, `pia_elig`
 #'   (wage-indexed PIA at eligibility), `pia` and `mfb` (in the benefit
@@ -85,13 +106,13 @@ retired_worker <- function(earnings, birth_year, birth_month, claim_age, first_y
                            birth_day = 15, benefit_age = NULL, noncovered_pension = 0,
                            people = NULL, policy = current_law()) {
   e <- as_earnings(earnings, first_year)
-  ids <- fill_from_people(people, names(match.call())[-1],
+  fp <- fill_from_people(people, names(match.call())[-1],
                           c("birth_year", "birth_month", "birth_day", "claim_age",
                             "benefit_age", "noncovered_pension"),
                           environment(), e$ids)
-  if (is.null(ids)) ids <- e$ids
-  m <- expand_rows(e$m, birth_year, birth_month, birth_day, claim_age, benefit_age,
-                   noncovered_pension)
+  ids <- if (is.null(fp$ids)) e$ids else fp$ids
+  m <- expand_rows(take_rows(e$m, fp$rows), birth_year, birth_month, birth_day, claim_age,
+                   benefit_age, noncovered_pension)
   first <- e$first
   n <- nrow(m)
   by <- rows_of(birth_year, "birth_year", n)
@@ -181,12 +202,16 @@ disabled_worker <- function(earnings, birth_year, birth_month, onset_year, onset
                             entitlement = NULL, benefit = NULL, childcare = NULL,
                             people = NULL, policy = current_law()) {
   e <- as_earnings(earnings, first_year)
-  ids <- fill_from_people(people, names(match.call())[-1],
+  fp <- fill_from_people(people, names(match.call())[-1],
                           c("birth_year", "birth_month", "birth_day", "onset_year",
                             "onset_month", "onset_day"), environment(), e$ids)
-  if (is.null(ids)) ids <- e$ids
-  m <- expand_rows(e$m, birth_year, birth_month, birth_day, onset_year, onset_month,
-                   onset_day, entitlement[[1]], benefit[[1]])
+  ids <- if (is.null(fp$ids)) e$ids else fp$ids
+  # a child-care matrix shaped like the earnings follows the same row map
+  if (!is.null(fp$rows) && is.matrix(childcare) && nrow(childcare) == nrow(e$m)) {
+    childcare <- take_rows(childcare, fp$rows)
+  }
+  m <- expand_rows(take_rows(e$m, fp$rows), birth_year, birth_month, birth_day, onset_year,
+                   onset_month, onset_day, entitlement[[1]], benefit[[1]])
   first <- e$first
   n <- nrow(m)
   by <- rows_of(birth_year, "birth_year", n)
@@ -306,12 +331,12 @@ deceased_worker <- function(earnings, birth_year, birth_month, death_year, benef
                             first_year = NULL, birth_day = 15, people = NULL,
                             policy = current_law()) {
   e <- as_earnings(earnings, first_year)
-  ids <- fill_from_people(people, names(match.call())[-1],
+  fp <- fill_from_people(people, names(match.call())[-1],
                           c("birth_year", "birth_month", "birth_day", "death_year"),
                           environment(), e$ids)
-  if (is.null(ids)) ids <- e$ids
-  m <- expand_rows(e$m, birth_year, birth_month, birth_day, death_year, benefit[[1]],
-                   benefit[[2]])
+  ids <- if (is.null(fp$ids)) e$ids else fp$ids
+  m <- expand_rows(take_rows(e$m, fp$rows), birth_year, birth_month, birth_day, death_year,
+                   benefit[[1]], benefit[[2]])
   first <- e$first
   n <- nrow(m)
   by <- rows_of(birth_year, "birth_year", n)
