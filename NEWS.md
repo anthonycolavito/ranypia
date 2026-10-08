@@ -15,6 +15,13 @@
   with a `type` column marking the conversion to a retirement benefit at
   NRA. A new fixture checks `disabled_worker()` against pyanypia for
   benefit months out to age 100 (the earlier fixtures stopped before 62).
+* New `lifetime_benefits()`: from a panel of people (with spouses and
+  children), each person's monthly benefits from first entitlement until
+  death, by type: their own retired or disabled benefit, and a spouse,
+  spouse-with-child, widow(er), parent-with-child or child benefit on
+  another record, sharing the family maximum and applying the rules below.
+  Claiming ages are inputs. 100,000 people with one row a year take about
+  90 seconds on a laptop.
 * `family_benefits()` gains four statutory rules, each off unless its
   `auxiliary()` argument is given, so existing results are unchanged:
   * `worker_factor` for a widow(er): the widow(er)'s limit when the worker

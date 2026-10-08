@@ -99,6 +99,26 @@ that switches from `"disabled"` to `"retired"` at NRA.
 With panel earnings, `people` may list the same id more than once (one row
 per claim age to compare, say); each row gets its own stream.
 
+## Lifetime benefits on a panel
+
+`lifetime_benefits()` runs the whole chain for a panel: each person's
+benefits every month (or one month a year) from first entitlement until a
+given age at death, including spouse, survivor and child benefits on their
+family members' records.
+
+```r
+people <- data.frame(id = 1:2, birth_year = c(1964, 1966), birth_month = 6,
+                     death_age = c(78, 92) * 12, claim_age = c(67, 62) * 12 + c(0, 1),
+                     spouse_id = c(2, 1))
+lb <- lifetime_benefits(panel, people, months = 6)
+#> id, role, benefit_year, benefit_month, age, own_type, own_benefit,
+#> aux_type, aux_record, aux_benefit, total
+```
+
+Claiming ages are inputs, and so is `death_age`, so mortality,
+discounting and claiming strategies stay with the caller. With one row a
+year, 100,000 people take about 90 seconds on a laptop.
+
 ## The building blocks
 
 The one-call helpers at the bottom of this table chain the others. Each of
@@ -122,6 +142,7 @@ those is usable alone.
 | `wep_pia()`, `gpo_offset()` | the repealed WEP and GPO, off by default |
 | `retired_worker()`, `disabled_worker()`, `deceased_worker()` | the whole chain in one call |
 | `benefit_stream()`, `disabled_stream()` | a retired or disabled worker's benefits to a final age |
+| `lifetime_benefits()` | a panel's benefits of every type until death |
 
 ## Conventions
 

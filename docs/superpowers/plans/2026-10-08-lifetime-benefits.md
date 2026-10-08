@@ -56,24 +56,19 @@ Each rule is its own function and test file. Put each in `R/family.R` unless not
 
 *Done 2026-10-08 (`tests/testthat/test-family-rules.R`):* rules follow POMS RS 00615.320 (limit), RS 00615.706 and 20 CFR 404.313(e) (survivors' credits), RS 00615.020 (dual entitlement, methods B and C), RS 00615.768 (family maximum with a dually entitled member, benefits from 10/1999) and 20 CFR 404.352 (child stop ages). Design choices for Phase 3: `end_age` defaults to no stop in `family_benefits()`, because pyanypia's fixtures include two children past 18; the streams should default children to 216 months. A dually entitled child or parent is paid their benefit less their own benefit, with no age reduction. Not covered: a reduced DIB after a reduced RIB in the limit (needs the earnings test's ARF), and the RIB-LIM rule that year-of-death credits wait until January.
 
-## Phase 3: Family and survivor streams
+## Phases 3 and 4: Family, survivor and panel benefits — done 2026-10-08
 
-Built on Phase 2. `family_benefits()` is already vectorized over families; a stream is one row per family per benefit month.
+Built as one function, `lifetime_benefits()` in `R/lifetime.R`, rather than separate `family_stream()` and `survivor_stream()` exports: the family and survivor logic only makes sense once the panel says who is married to whom, who has died and which children are in care. It uses only the one-call functions and `family_benefits()`.
 
-- [ ] `family_stream()`: for a living worker's family. Inputs per family: the worker (as for `benefit_stream()` or `disabled_stream()`), and a `members` data frame (`family`, `kind`, birth date, `claim_age`, `own_pia`/`own_benefit`, `end_age`). For each benefit month, compute the worker's PIA and family maximum with the worker stream, then `family_benefits()`. A spouse is paid only from the later of their claim month and the worker's entitlement month.
-- [ ] `survivor_stream()`: same, after the worker's death, via `deceased_worker()` (worker never entitled or died before 62) or the worker's own stream values at death (entitled worker), `widow_guarantee_pia()` where it applies, and the Phase 2 limit.
-- [ ] **Ask:** when a widow(er) is entitled to both a survivor benefit and their own, the claiming order (survivor first and switch to own at 70, or the reverse) changes lifetime benefits. Take the claiming ages as inputs, or add an option that picks the larger each month?
-- [ ] Tests: a two-earner couple over a full life cycle checked by hand at four or five months (both alive, one dies, conversions); a family with two children hitting the family maximum, then a child aging out.
+- [x] Own benefits: retired (from `claim_age`, if fully insured) or disabled (after the waiting period, if disability insured and before any retirement claim), converting at NRA.
+- [x] Spouse benefits from the later of the spouse's `claim_age` (deemed filing) and the worker's entitlement, reduced for the age at spousal entitlement; a spouse caring for a child under 16 instead (unreduced, any age).
+- [x] Survivors: widow(er) benefits from the later of the death month and `survivor_claim_age` (default 60); a widowed parent caring for a child under 16 before then; children while the parent is entitled or after death, to `end_age` (default 216). The deceased worker must have been entitled or fully insured at death. The survivor PIA is `deceased_worker()`'s, or, for a disabled worker, the frozen DI PIA with the regular family maximum if higher; the re-indexed guarantee applies for a death before 62.
+- [x] Phase 2 rules wired in: `worker_factor` (all credits earned before death count, 20 CFR 404.313(e)(1)), dual entitlement with the person's own PIA and factor in that month.
+- [x] **Ask, answered:** claiming ages (own, spousal, survivor) are given inputs. Output is nominal dollars, one row per person-month; `months = 6` gives one row a year.
+- [x] Tests (`tests/testthat/test-lifetime.R`): single retiree; DI to retirement; spouse with no earnings; widow with the limit and dual entitlement; young survivor family with the guarantee; a living retiree's spouse and child in care; every row checked against direct calls.
+- [x] Timing: 10,000 people (couples, 8% disabled), one row a year: 9 seconds, so about 90 seconds for 100,000.
 
-## Phase 4: Panel lifetime runner
-
-The goal function. One call from a panel to person-month benefits until death.
-
-- [ ] `lifetime_benefits(earnings, people, step = 12, policy = current_law())`, where `people` has one row per person: `id`, birth date, `claim_age`, optional `onset_year`/`onset_month` (disability), `death_age`, and `spouse_id` (or `NA`), plus optional children rows.
-- [ ] For each person-month, decide the person's entitlements from those events (own retired or disabled; spouse; widow(er); child) and route to the Phase 1 to 3 streams. Return one row per person-month with `own_benefit`, `aux_benefit`, `total`, `type`, and the record it is paid on.
-- [ ] Mortality stays outside the package: `death_age` comes from the user's microsimulation, so the same function serves stochastic and expected-value runs.
-- [ ] **Ask:** output shape for 100,000+ people (yearly rows by default; monthly only on request; optionally summed to calendar years), and whether to return nominal dollars only (discounting and price deflation left to the user) — recommended.
-- [ ] Tests: small synthetic panels covering each path (single retiree; DI to retirement; couple with one early death; widow with own benefit; young survivor family), each row checked against the Phase 1 to 3 functions called directly; a 100,000-person timing test kept out of CRAN checks.
+Not covered (also in the function's documentation): the earnings test, divorce, remarriage, marriage-length requirements, disabled widow(er)s, disability recovery, a child on more than one record, currently insured status, and insured status gained after the claim month.
 
 ## Out of scope unless the user says otherwise
 
