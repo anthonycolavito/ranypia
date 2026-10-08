@@ -33,6 +33,8 @@ From Anthony's review on October 8, 2026. Item numbers refer to the tables below
 
 **Explained below:** #8 survivors of a disabled worker; disabled widow(er)s, disability recovery and prior disability.
 
+**After the explanation** (October 8, 2026): disabled widow(er)s were added to `lifetime_benefits()`. Disability recovery and prior disability are set aside: **ranypia assumes disability is an absorbing state**, so no disability beneficiary recovers. This is noted in `lifetime_benefits()`'s help page, the README and the plan.
+
 **pyanypia:** fix #1 makes ranypia differ from pyanypia and AnyPIA on purpose, for a disabled worker's family maximum from NRA. The difference is accepted and documented in the README, NEWS, `disabled_worker()`'s help page and its fixture test.
 
 ## Differences that change results

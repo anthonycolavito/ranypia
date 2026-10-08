@@ -50,7 +50,8 @@ their first possible entitlement until death: \code{id}, \code{role}
 (\code{"person"} or \code{"child"}), \code{benefit_year}, \code{benefit_month}, \code{age}
 (months), \code{own_type} (\code{"retired"}, \code{"disabled"} or \code{NA}),
 \code{own_benefit}, \code{aux_type} (\code{"spouse"}, \code{"spouse_with_child"},
-\code{"widow"}, \code{"parent_with_child"}, \code{"child"} or \code{NA}), \code{aux_record} (the
+\code{"widow"}, \code{"disabled_widow"}, \code{"parent_with_child"}, \code{"child"} or
+\code{NA}), \code{aux_record} (the
 \code{id} whose record pays it), \code{aux_benefit} (the amount payable on that
 record; \code{aux_type} is \code{NA} when nothing is, as for a spouse whose own
 benefit is larger) and \code{total}, all in whole dollars.
@@ -59,8 +60,9 @@ benefit is larger) and \code{total}, all in whole dollars.
 Each person's monthly Social Security benefits from first entitlement
 until death: their own retired- or disabled-worker benefit, and a
 benefit on their spouse's record as an aged spouse, a spouse caring for
-a child under 16, a widow(er), or a widowed parent caring for a child
-under 16; and each child's benefit on a parent's record. Family members
+a child under 16, a widow(er), a disabled widow(er) aged 50 to 59, or a
+widowed parent caring for a child under 16; and each child's benefit on
+a parent's record. Family members
 on one record share the family maximum, and the widow(er)'s limit,
 survivors' delayed credits and dual entitlement apply (see
 \code{\link[=family_benefits]{family_benefits()}}). Amounts are in nominal dollars; mortality comes in
@@ -85,10 +87,18 @@ Survivors need the worker entitled or fully insured at death for a
 widow(er)'s benefit, and fully or currently insured (\code{\link[=currently_insured]{currently_insured()}})
 for child's and mother's or father's benefits.
 
+Disability is an absorbing state: a person with an onset date stays
+disabled for life, so disability benefits run to NRA and convert, and
+nobody recovers. A disabled widow(er) (onset given) is paid from 50 if
+the disability began within the prescribed period (84 months from the
+later of the death and the end of a mother's or father's benefit), after
+a five-month waiting period, and converts to a widow(er)'s benefit at 60;
+they need no insured status of their own.
+
 Not covered: the earnings test, divorce, remarriage, the marriage-length
-requirements, disabled widow(er)s, disability recovery, a child entitled
-on more than one record, and a worker who becomes insured only after the
-month they claim.
+requirements, disability recovery (and so the freeze for a retiree who
+was once disabled), a child entitled on more than one record, and a
+worker who becomes insured only after the month they claim.
 }
 \examples{
 awi <- function(years, scale = 1) current_law()$awi[years - 1936] * scale

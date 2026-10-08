@@ -15,6 +15,10 @@
   higher PIA is used, with the regular family maximum. `lifetime_benefits()`
   uses it for every disabled worker's survivors, replacing its earlier
   approximation.
+* `lifetime_benefits()` pays disabled widow(er)s aged 50 to 59 (section
+  202(e)(1)(B)(ii)): disabled within the prescribed period, after a
+  five-month waiting period, converting to a widow(er)'s benefit at 60.
+  Disability is treated as an absorbing state: nobody recovers.
 * The earnings needed for a quarter of coverage are now stored as data
   (`qc_hist` in `current_law()`): the Act's $50 before 1978 and SSA's
   published amounts for 1978-2026, with only later years projected. Results

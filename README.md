@@ -116,7 +116,9 @@ lb <- lifetime_benefits(panel, people, months = 6)
 ```
 
 Claiming ages are inputs, and so is `death_age`, so mortality,
-discounting and claiming strategies stay with the caller. With one row a
+discounting and claiming strategies stay with the caller. Disability is an
+absorbing state: a person with an onset date stays disabled, so there is
+no recovery (and no disability freeze for a later retirement). With one row a
 year, 100,000 people take about 90 seconds on a laptop.
 
 ## The building blocks

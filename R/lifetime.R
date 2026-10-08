@@ -7,8 +7,9 @@
 #' Each person's monthly Social Security benefits from first entitlement
 #' until death: their own retired- or disabled-worker benefit, and a
 #' benefit on their spouse's record as an aged spouse, a spouse caring for
-#' a child under 16, a widow(er), or a widowed parent caring for a child
-#' under 16; and each child's benefit on a parent's record. Family members
+#' a child under 16, a widow(er), a disabled widow(er) aged 50 to 59, or a
+#' widowed parent caring for a child under 16; and each child's benefit on
+#' a parent's record. Family members
 #' on one record share the family maximum, and the widow(er)'s limit,
 #' survivors' delayed credits and dual entitlement apply (see
 #' [family_benefits()]). Amounts are in nominal dollars; mortality comes in
@@ -32,10 +33,18 @@
 #' widow(er)'s benefit, and fully or currently insured ([currently_insured()])
 #' for child's and mother's or father's benefits.
 #'
+#' Disability is an absorbing state: a person with an onset date stays
+#' disabled for life, so disability benefits run to NRA and convert, and
+#' nobody recovers. A disabled widow(er) (onset given) is paid from 50 if
+#' the disability began within the prescribed period (84 months from the
+#' later of the death and the end of a mother's or father's benefit), after
+#' a five-month waiting period, and converts to a widow(er)'s benefit at 60;
+#' they need no insured status of their own.
+#'
 #' Not covered: the earnings test, divorce, remarriage, the marriage-length
-#' requirements, disabled widow(er)s, disability recovery, a child entitled
-#' on more than one record, and a worker who becomes insured only after the
-#' month they claim.
+#' requirements, disability recovery (and so the freeze for a retiree who
+#' was once disabled), a child entitled on more than one record, and a
+#' worker who becomes insured only after the month they claim.
 #'
 #' @param earnings Earnings for the people in `people`: a long data frame
 #'   with `id`, `year`, `earnings` (people with no rows have no earnings), or
@@ -63,7 +72,8 @@
 #'   (`"person"` or `"child"`), `benefit_year`, `benefit_month`, `age`
 #'   (months), `own_type` (`"retired"`, `"disabled"` or `NA`),
 #'   `own_benefit`, `aux_type` (`"spouse"`, `"spouse_with_child"`,
-#'   `"widow"`, `"parent_with_child"`, `"child"` or `NA`), `aux_record` (the
+#'   `"widow"`, `"disabled_widow"`, `"parent_with_child"`, `"child"` or
+#'   `NA`), `aux_record` (the
 #'   `id` whose record pays it), `aux_benefit` (the amount payable on that
 #'   record; `aux_type` is `NA` when nothing is, as for a spouse whose own
 #'   benefit is larger) and `total`, all in whole dollars.
@@ -225,6 +235,13 @@ lifetime_benefits <- function(earnings, people, children = NULL, months = 1:12,
                       cp[c_start < pmin(c_end, ck + 192)], min)
     first_care[as.integer(names(fc_care))] <- fc_care
   }
+  # last month each record has a child under 16 in care
+  last_care <- rep(-Inf, np)
+  if (nc > 0) {
+    okc <- c_start < pmin(c_end, ck + 192)
+    lc <- tapply((pmin(c_end, ck + 192) - 1)[okc], cp[okc], max)
+    last_care[as.integer(names(lc))] <- lc
+  }
 
   # ---- each person's months ----
   spousal_start <- rep(Inf, np)
@@ -239,9 +256,27 @@ lifetime_benefits <- function(earnings, people, children = NULL, months = 1:12,
   widow_start[i] <- ifelse(surv_ok[j],
                            pmax(death[j], k[i] + ifelse(is.na(surv_claim[i]), 720, surv_claim[i])),
                            Inf)
+  # Disabled widow(er)s aged 50-59 (sec. 202(e)(1)(B)(ii); POMS DI
+  # 10110.001, DI 11005.050): disabled no later than the end of the
+  # prescribed period, which begins with the later of the death and the last
+  # month of mother's or father's benefits and ends 84 months later (or the
+  # month before 60, if earlier). Paid after a five-month waiting period
+  # (which may start up to five months before the period), never before 50,
+  # and from 60 as a widow(er) without a new filing. Disability is an
+  # absorbing state here: nobody recovers.
+  onset_idx <- month_index(ifelse(is.na(oy), 2000, oy), ifelse(is.na(om), 1, om))
+  onset_full <- onset_idx + ifelse(od == 1, 0, 1)
+  dwb_start <- rep(Inf, np)
+  p_start <- pmax(death[j], last_care[j])
+  p_end <- pmin(p_start + 84, k[i] + 719)
+  dwb_ok <- !is.na(oy[i]) & surv_ok[j] & onset_idx[i] <= p_end
+  dwb_first <- pmax(onset_full[i] + 5, death[j], k[i] + 600)
+  dwb_start[i] <- ifelse(dwb_ok & dwb_first < k[i] + 720 & dwb_first < death[i], dwb_first, Inf)
+  widow_start[i] <- ifelse(is.finite(dwb_start[i]),
+                           pmin(widow_start[i], pmax(k[i] + 720, death[j])), widow_start[i])
   care_start <- rep(Inf, np)
   care_start[i] <- first_care[j]
-  start <- pmin(own_start, spousal_start, widow_start, care_start)
+  start <- pmin(own_start, spousal_start, widow_start, care_start, dwb_start)
   grid <- function(start, end) {
     cnt <- pmax(ifelse(is.finite(start), end - start, 0), 0)
     w <- rep(seq_along(start), times = cnt)
@@ -307,9 +342,12 @@ lifetime_benefits <- function(earnings, people, children = NULL, months = 1:12,
   aux_type[sr] <- ifelse(live_ent & care, "spouse_with_child",
                   ifelse(live_ent & st >= spousal_start[si], "spouse",
                   ifelse(!alive & st >= widow_start[si], "widow",
-                  ifelse(!alive & surv_child[sj] & care, "parent_with_child", NA))))
+                  ifelse(!alive & surv_child[sj] & care, "parent_with_child",
+                  ifelse(!alive & st >= dwb_start[si] & st < k[si] + 720, "disabled_widow",
+                         NA)))))
   aux_claim[sr] <- ifelse(aux_type[sr] %in% "spouse", spousal_start[si] - k[si],
-                   ifelse(aux_type[sr] %in% "widow", widow_start[si] - k[si], 0))
+                   ifelse(aux_type[sr] %in% "widow", widow_start[si] - k[si],
+                   ifelse(aux_type[sr] %in% "disabled_widow", dwb_start[si] - k[si], 0)))
 
   # ---- record values: the worker's PIA and maximum in each month ----
   fam_rows <- which(!is.na(aux_type))
@@ -369,22 +407,25 @@ lifetime_benefits <- function(earnings, people, children = NULL, months = 1:12,
       jj <- rj[f]
       dual <- !is.na(own_type[x])
       gp <- NULL
-      if (kind == "widow") {
+      if (kind %in% WIDOW_KINDS) {
         gp <- rep(0, length(f))
         early_death <- death_age[jj] < 62 * 12 + 1
         if (any(early_death)) {
           e1 <- which(early_death)
+          dis <- kind == "disabled_widow"
           gp[e1] <- widow_guarantee_pia(
             M[jj[e1], , drop = FALSE], by[jj[e1]], bm[jj[e1]], dmi$year[jj[e1]],
             dmi$month[jj[e1]], by[wi[e1]], bm[wi[e1]], list(ben$year[e1], ben$month[e1]),
-            widow_birth_day = bd[wi[e1]], first_year = first, birth_day = bd[jj[e1]],
-            death_day = 15, policy = policy)
+            widow_birth_day = bd[wi[e1]],
+            disabled_onset_year = if (dis) oy[wi[e1]],
+            entitlement_year = if (dis) dwb_start[wi[e1]] %/% 12,
+            first_year = first, birth_day = bd[jj[e1]], death_day = 15, policy = policy)
         }
       }
       auxes[[1]] <- auxiliary(
         kind, by[wi], bm[wi], claim_age = aux_claim[x], birth_day = bd[wi],
         guarantee_pia = gp,
-        worker_factor = if (kind == "widow") worker_factor[jj],
+        worker_factor = if (kind %in% WIDOW_KINDS) worker_factor[jj],
         own_pia = ifelse(dual, own_pia[x], NA),
         own_factor = ifelse(dual, own_factor[wi], 1))
     }

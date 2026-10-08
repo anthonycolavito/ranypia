@@ -81,6 +81,10 @@ Fix now (branch `audit-fixes`):
 - [x] #8 Survivors of a disabled worker: `deceased_worker()` computes the PIA with the freeze and the disability eligibility year (secs. 215(a)(2)(A), 215(b)(2)(B)); `lifetime_benefits()` uses it. *Added to the fix list 2026-10-08 after the explanation.*
 - [x] #14 Store the actual historical QC requirements in the policy data; update the README and help pages. *Done: `qc_hist` in `current_law()` (the Act's $50 before 1978, SSA's published amounts 1978-2026, verified against ssa.gov). The per-calendar-quarter test before 1978 stays applied to annual totals, since ranypia takes annual earnings only; no records input (Anthony, 2026-10-08).*
 
+- [x] Disabled widow(er)s aged 50-59 in `lifetime_benefits()` (sec. 202(e)(1)(B)(ii); POMS DI 10110.001, DI 11005.050). *Done 2026-10-08.*
+
+**Modeling assumption (Anthony, 2026-10-08): disability is an absorbing state.** No DI beneficiary recovers, so disability recovery and the freeze for a retiree with a prior disability (§215(a)(2)(A), §215(b)(2)(B)) are set aside, not planned.
+
 Incorporate later, each its own phase:
 
 - [ ] The earnings test, §203(b) and (f), with the reduction-factor adjustment at FRA, §202(q)(7).

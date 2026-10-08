@@ -195,3 +195,65 @@ test_that("a disabled worker's widow is paid on the PIA with the freeze", {
                                        worker_factor = 1)), 2030, 6, survivor = TRUE)
   expect_identical(w$aux_benefit, fb$benefit)
 })
+
+# ---- disabled widow(er)s (sec. 202(e)(1)(B)(ii); POMS DI 10110.001, DI 11005.050) ----
+
+dwb_case <- function(widow_birth, death_age, onset, kids = NULL, months = 6) {
+  people <- data.frame(id = 1:2, birth_year = c(1970, widow_birth), birth_month = 3,
+                       death_age = c(death_age, 90 * 12), spouse_id = c(2, 1),
+                       onset_year = c(NA, onset[1]), onset_month = c(NA, onset[2]))
+  lifetime_benefits(long(rec(1, 1992:2024, 1)), people, children = kids, months = months)
+}
+
+test_that("a disabled widow is paid from the waiting period's end, then as a widow at 60", {
+  # husband dies at 55 (March 2025); she was disabled in June 2024 at 52,
+  # so the waiting period (July-November 2024) is over: paid from March 2025
+  lb <- dwb_case(1972, 55 * 12, c(2024, 6), months = 1:12)
+  w <- lb[lb$id == 2 & !is.na(lb$aux_type), ]
+  first <- w[1, ]
+  expect_identical(first$aux_type, "disabled_widow")
+  expect_equal(c(first$benefit_year, first$benefit_month), c(2025, 3))
+  expect_true(all(w$aux_type[w$age < 720] == "disabled_widow"))
+  expect_true(all(w$aux_type[w$age >= 720] == "widow"))
+  # one month against direct calls: the worker died before 62, so the
+  # re-indexed guarantee applies, on the disabled widow's terms
+  y <- w[w$benefit_year == 2028 & w$benefit_month == 6, ]
+  e <- setNames(awi(1992:2024), 1992:2024)
+  d <- deceased_worker(e, 1970, 3, 2025, list(2028, 6))
+  g <- widow_guarantee_pia(e, 1970, 3, 2025, 3, 1972, 3, list(2028, 6),
+                           disabled_onset_year = 2024, entitlement_year = 2025)
+  fb <- family_benefits(d$pia, d$mfb,
+                        list(auxiliary("disabled_widow", 1972, 3, claim_age = y$age - 39,
+                                       guarantee_pia = g, worker_factor = NA)),
+                        2028, 6, survivor = TRUE)
+  expect_identical(y$aux_benefit, fb$benefit)
+  expect_equal(fb$reduction_factor, 0.715)
+})
+
+test_that("disability must begin within 84 months of the death", {
+  # widow 45 when he dies in March 2025; the period ends March 2032
+  late <- dwb_case(1980, 55 * 12, c(2032, 6))
+  in_time <- dwb_case(1980, 55 * 12, c(2031, 6), months = 1:12)
+  expect_false(any(late$aux_type %in% "disabled_widow"))
+  expect_identical(unique(late$aux_type[late$id == 2 & !is.na(late$aux_type)]), "widow")
+  dw <- in_time[in_time$id == 2 & in_time$aux_type %in% "disabled_widow", ]
+  # waiting July-November 2031, paid from December
+  expect_equal(c(dw$benefit_year[1], dw$benefit_month[1]), c(2031, 12))
+})
+
+test_that("not before 50, however early the disability", {
+  lb <- dwb_case(1980, 55 * 12, c(2024, 1))  # disabled at 43, widowed at 45
+  dw <- lb[lb$id == 2 & lb$aux_type %in% "disabled_widow", ]
+  expect_equal(min(dw$age), 50 * 12 + 3)  # first June row after March 2030 (age 50)
+})
+
+test_that("the end of a mother's benefit starts the 84 months", {
+  # death 2025, youngest child 16 in May 2030: the period runs from 2030, so
+  # a 2035 onset qualifies, though it is more than 84 months after the death
+  kids <- data.frame(id = 9, parent_id = 1, birth_year = 2014, birth_month = 5)
+  lb <- dwb_case(1980, 55 * 12, c(2035, 6), kids = kids)
+  mom <- lb[lb$id == 2 & !is.na(lb$aux_type), ]
+  expect_true(all(mom$aux_type[mom$benefit_year <= 2029] == "parent_with_child"))
+  expect_true(any(mom$aux_type %in% "disabled_widow"))
+  expect_false(any(dwb_case(1980, 55 * 12, c(2035, 6))$aux_type %in% "disabled_widow"))
+})
