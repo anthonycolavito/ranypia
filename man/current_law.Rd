@@ -41,6 +41,13 @@ $2,500 for 2002 (\code{ret_higher_base}, from the 2000 AWI); withholding rates
 \code{ret_rate_lower} (1/2) and \code{ret_rate_higher} (1/3); \code{ret_enabled = FALSE}
 repeals the test. The derived series are \code{ret_lower} and \code{ret_higher}.
 
+The GDP price index, which \code{\link[=stylized_earnings]{stylized_earnings()}} uses for constant-dollar
+earnings: index levels (\code{gdp_price_hist}, named by year; 1959 = 1,
+history through 2025) and the Trustees' projected annual growth in
+percent (\code{gdp_price_growth}, 2026-2100), giving the series \code{gdp_price}.
+It has no values before 1959 or after 2100. Only the ratio of two years'
+values is used, so the base year doesn't matter.
+
 The \code{cola} series holds each increase as originally computed, so
 December 1999 is 2.4\%. A CPI error understated it; the law that fixed it
 pays benefits from July 2001 as if it had been 2.5\%, and the functions
