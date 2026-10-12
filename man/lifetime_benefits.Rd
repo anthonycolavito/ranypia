@@ -11,7 +11,9 @@ lifetime_benefits(
   months = 1:12,
   first_year = NULL,
   policy = current_law(),
-  chunk_size = 250000
+  chunk_size = 250000,
+  earnings_test = FALSE,
+  grace_year = c("prorate", "none", "annual")
 )
 }
 \arguments{
@@ -43,6 +45,12 @@ for every month, or a single month such as \code{6} for one row a year.}
 
 \item{chunk_size}{Rows per call to the one-call functions; it does not
 change results.}
+
+\item{earnings_test}{Apply the retirement earnings test (default
+\code{FALSE}, which keeps every result exactly SSA's calculator's).}
+
+\item{grace_year}{How the first year of entitlement is measured:
+\code{"prorate"}, \code{"none"} or \code{"annual"}.}
 }
 \value{
 A tibble with one row per person (and child) and month from
@@ -95,7 +103,21 @@ later of the death and the end of a mother's or father's benefit), after
 a five-month waiting period, and converts to a widow(er)'s benefit at 60;
 they need no insured status of their own.
 
-Not covered: the earnings test, divorce, remarriage, the marriage-length
+With \code{earnings_test = TRUE}, each person's earnings after entitlement
+go through \code{\link[=earnings_test]{earnings_test()}} year by year. A retired worker's excess is
+withheld from their own benefit and from everything paid on their record
+(sec. 203(b)(1)), month by month from January until it is used up, a
+partial last month shared in proportion; what is left, and the excess of
+anyone without a retirement benefit, is withheld from their own spouse's
+or survivor's benefit. Disability benefits are not tested. From NRA the
+reduction of a retirement, spouse's or widow(er)'s benefit leaves out
+the months with a deduction (sec. 202(q)(7)), and before 2000 months
+withheld from a retirement benefit after NRA earn delayed credits. The
+test stops at the person's retired-worker NRA, or the survivor NRA for a
+widow(er) with no retirement benefit. The output then has \code{withheld} and
+\code{paid} (\code{total} is the amount due before the test).
+
+Not covered: divorce, remarriage, the marriage-length
 requirements, disability recovery (and so the freeze for a retiree who
 was once disabled), a child entitled on more than one record, and a
 worker who becomes insured only after the month they claim.

@@ -1,3 +1,22 @@
+# ranypia (development version)
+
+* The retirement earnings test (sections 203(b), (f) and 202(q)(7)),
+  measured on annual earnings. New `earnings_test()` gives a year's excess
+  earnings, under the rules from 2000 and before. `current_law()` carries
+  SSA's published exempt amounts for 1975-2026, projected by section
+  203(f)(8), with `ret_enabled = FALSE` to repeal the test.
+  `benefit_stream()` and `lifetime_benefits()` apply it with
+  `earnings_test = TRUE` (default `FALSE`, so results are unchanged):
+  withholding month by month from January, across the family on a retired
+  worker's record, and the reduction recomputed at NRA without the months
+  withheld (delayed credits for months withheld after NRA before 2000).
+  `adjustment_months()`, `benefit_factor()` and `retired_worker()` take
+  `withheld_months` and `withheld_credits`, and `auxiliary()` takes
+  `withheld_months`.
+* `current_law()`'s help explains that the December 1999 COLA is stored as
+  computed (2.4%) and corrected to 2.5% where benefits are carried forward,
+  so it must not be changed in the series.
+
 # ranypia 0.2.0
 
 * `disabled_worker()`: from the month the benefit converts to a retirement

@@ -169,7 +169,7 @@ ret_test_year <- function(e, y, k, ent, nra, grace_year, policy) {
 
 # Earnings in year `y` for each row of an earnings matrix (0 outside it).
 earnings_in_year <- function(m, first, y) {
-  col <- y - first + 1
+  col <- rep_len(y - first + 1, nrow(m))
   ok <- col >= 1 & col <= ncol(m)
   out <- rep(0, nrow(m))
   out[ok] <- m[cbind(which(ok), col[ok])]
@@ -256,4 +256,116 @@ credits_for <- function(w, t, k, cr_w, cr_y, age70 = TRUE) {
     out[use] <- out[use] + cnt[w[use]]
   }
   out
+}
+
+# Charges each year's excess earnings within families (sec. 203(b), (f)):
+# first a retired worker's excess against their own benefit and everything
+# paid on their record, then what is left, and the excess of anyone without
+# a retirement benefit, against their own auxiliary benefit. `sch` is a
+# lifetime_benefits() schedule; person rows are (pw, pt), child rows (crec =
+# the record, ct). Returns the amounts withheld per row and the months
+# withheld per person (own benefit before NRA, auxiliary benefit before its
+# NRA, own benefit after NRA as credit events).
+charge_family <- function(sch, M, first, k, pw, pt, sp, crec, ct, retired_ok, nra,
+                          surv_nra, test_nra, grace_year, policy) {
+  np <- length(k)
+  rem_own <- ifelse(sch$own_type %in% "retired", sch$own_benefit, 0)
+  rem_aux <- sch$aux_benefit
+  rem_child <- sch$child_benefit
+  w_own <- rep(0, length(pw))
+  w_aux <- rep(0, length(pw))
+  w_child <- rep(0, length(ct))
+  rec_aux <- sp[pw]
+  # first month of a benefit the test can reach
+  paid <- rem_own + rem_aux > 0
+  ent_age <- rep(Inf, np)
+  if (any(paid)) {
+    e1 <- tapply((pt - k[pw])[paid], pw[paid], min)
+    ent_age[as.integer(names(e1))] <- e1
+  }
+  own_key <- pw * 1e5 + pt
+  is_retired_month <- function(i, t) {
+    hit <- match(i * 1e5 + t, own_key)
+    !is.na(hit) & sch$own_type[ifelse(is.na(hit), 1, hit)] %in% "retired"
+  }
+  tested <- function(i, t) {
+    age <- t - k[i]
+    age >= ent_age[i] & age < ret_stop_age(t, test_nra[i])
+  }
+  # withhold from items (charger, t, amount) until each charger's excess is
+  # used up, whole months in calendar order, a last month in part
+  charge <- function(charger, t, amount, excess) {
+    if (!length(charger)) return(list(withheld = numeric(), left = excess))
+    o <- order(charger, t)
+    key <- charger * 1e5 + t
+    uk <- unique(key[o])
+    tot <- as.numeric(tapply(amount, factor(key, levels = uk), sum))
+    uc <- uk %/% 1e5
+    before <- stats::ave(tot, uc, FUN = function(x) cumsum(x) - x)
+    ded <- pmin(tot, pmax(excess[uc] - before, 0))
+    used <- tapply(ded, uc, sum)
+    left <- excess
+    left[as.integer(names(used))] <- left[as.integer(names(used))] - used
+    share <- ifelse(tot > 0, ded / tot, 0)
+    list(withheld = amount * share[match(key, uk)], left = pmax(left, 0))
+  }
+  years <- seq(min(c(pt, ct)) %/% 12, max(c(pt, ct)) %/% 12)
+  for (y in years) {
+    ok <- is.finite(ent_age)
+    if (!any(ok)) break
+    idx <- which(ok)
+    res <- ret_test_year(earnings_in_year(M[idx, , drop = FALSE], first, y), rep(y, length(idx)),
+                         k[idx], ent_age[idx], test_nra[idx], grace_year, policy)
+    excess <- rep(0, np)
+    excess[idx] <- res$excess
+    if (!any(excess > 0)) next
+    in_y <- pt %/% 12 == y
+    # stage 1: a retired worker's own benefit and the benefits on their record
+    o_r <- which(in_y & rem_own > 0 & retired_ok[pw] & excess[pw] > 0)
+    o_r <- o_r[tested(pw[o_r], pt[o_r])]
+    a_r <- which(in_y & rem_aux > 0 & !is.na(rec_aux))
+    a_r <- a_r[retired_ok[rec_aux[a_r]] & excess[rec_aux[a_r]] > 0]
+    a_r <- a_r[is_retired_month(rec_aux[a_r], pt[a_r]) & tested(rec_aux[a_r], pt[a_r])]
+    c_r <- which(ct %/% 12 == y & rem_child > 0)
+    c_r <- c_r[retired_ok[crec[c_r]] & excess[crec[c_r]] > 0]
+    c_r <- c_r[is_retired_month(crec[c_r], ct[c_r]) & tested(crec[c_r], ct[c_r])]
+    s1 <- charge(c(pw[o_r], rec_aux[a_r], crec[c_r]), c(pt[o_r], pt[a_r], ct[c_r]),
+                 c(rem_own[o_r], rem_aux[a_r], rem_child[c_r]),
+                 ifelse(retired_ok, excess, 0))
+    no <- length(o_r)
+    na <- length(a_r)
+    if (no + na + length(c_r)) {
+      w <- s1$withheld
+      w_own[o_r] <- w_own[o_r] + w[seq_len(no)]
+      rem_own[o_r] <- rem_own[o_r] - w[seq_len(no)]
+      w_aux[a_r] <- w_aux[a_r] + w[no + seq_len(na)]
+      rem_aux[a_r] <- rem_aux[a_r] - w[no + seq_len(na)]
+      w_child[c_r] <- w_child[c_r] + w[no + na + seq_along(c_r)]
+      rem_child[c_r] <- rem_child[c_r] - w[no + na + seq_along(c_r)]
+      excess[retired_ok] <- s1$left[retired_ok]
+    }
+    # stage 2: what is left against each person's own auxiliary benefit
+    x_r <- which(in_y & rem_aux > 0 & excess[pw] > 0)
+    x_r <- x_r[tested(pw[x_r], pt[x_r])]
+    if (length(x_r)) {
+      s2 <- charge(pw[x_r], pt[x_r], rem_aux[x_r], excess)
+      w_aux[x_r] <- w_aux[x_r] + s2$withheld
+      rem_aux[x_r] <- rem_aux[x_r] - s2$withheld
+    }
+  }
+  age <- pt - k[pw]
+  count_by <- function(rows) {
+    out <- rep(0, np)
+    if (length(rows)) {
+      tb <- table(pw[rows])
+      out[as.integer(names(tb))] <- as.numeric(tb)
+    }
+    out
+  }
+  aux_nra <- ifelse(sch$aux_type %in% WIDOW_KINDS, surv_nra[pw], nra[pw])
+  own_wm <- count_by(which(w_own > 0 & age < nra[pw]))
+  aux_wm <- count_by(which(w_aux > 0 & age < aux_nra & sch$aux_type %in% REDUCIBLE))
+  post <- which(w_own > 0 & age >= nra[pw])
+  list(own_wm = own_wm, aux_wm = aux_wm, cr_w = pw[post], cr_y = pt[post] %/% 12,
+       person_withheld = w_own + w_aux, child_withheld = w_child)
 }

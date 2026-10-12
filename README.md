@@ -99,6 +99,37 @@ that switches from `"disabled"` to `"retired"` at NRA.
 With panel earnings, `people` may list the same id more than once (one row
 per claim age to compare, say); each row gets its own stream.
 
+## The earnings test
+
+`earnings_test()` gives a year's excess earnings under the retirement
+earnings test (section 203(b), (f)): $1 for every $2 above the lower exempt
+amount before the year of normal retirement age, and $1 for every $3 above
+the higher amount in that year, counting only earnings before the NRA month.
+The rules before 2000 are there too (the test ran to 72, then 70, with the
+higher amount from 65). `current_law()` carries SSA's published exempt
+amounts for 1975-2026 and projects them by section 203(f)(8).
+
+The test is measured on annual earnings: a year's earnings are taken as
+spread evenly over its months. In the first year of entitlement, where the
+law applies a monthly test, the earnings counted are prorated by the months
+entitled (`grace_year = "prorate"`), between the law's two limits, someone
+who stops work at claiming (`"none"`) and someone who keeps working
+(`"annual"`).
+
+`benefit_stream()` and `lifetime_benefits()` apply it with
+`earnings_test = TRUE`: the excess is withheld month by month from January
+until it is used up, from the worker's own benefit and everything paid on
+their record; from NRA, the reduction leaves out every month with a
+deduction (section 202(q)(7)), and before 2000 months withheld after NRA
+earn delayed credits. The output adds `withheld` and `paid`. The test is
+off by default, so every other result stays exactly AnyPIA's.
+
+```r
+e2 <- c(earnings[as.character(1986:2025)], setNames(rep(50000, 5), 2026:2030))
+s <- benefit_stream(e2, 1964, 6, claim_age = 62 * 12 + 1, earnings_test = TRUE)
+s[, c("benefit_year", "factor", "benefit", "withheld", "paid")]
+```
+
 ## Lifetime benefits on a panel
 
 `lifetime_benefits()` runs the whole chain for a panel: each person's
@@ -200,7 +231,10 @@ Not covered:
   and workers born 1917-1921 get a warning that the transitional guarantee
   (an old-law minimum that may exceed the wage-indexed PIA) is not computed
 - totalization, and the disability guarantee after a prior disability
-- divorced spouses, and the earnings test
+- divorced spouses
+- the earnings test's monthly detail: it is measured on annual earnings
+  (see above), and SSA's reporting, estimates and overpayment recovery are
+  left out
 - **pre-1978 quarters of coverage**, in one respect: the policy stores the
   actual historical requirements (the Act's $50 before 1978, SSA's published
   amounts from 1978), but before 1978 the $50 applied to each calendar

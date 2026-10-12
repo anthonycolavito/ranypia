@@ -41,7 +41,21 @@
 #' a five-month waiting period, and converts to a widow(er)'s benefit at 60;
 #' they need no insured status of their own.
 #'
-#' Not covered: the earnings test, divorce, remarriage, the marriage-length
+#' With `earnings_test = TRUE`, each person's earnings after entitlement
+#' go through [earnings_test()] year by year. A retired worker's excess is
+#' withheld from their own benefit and from everything paid on their record
+#' (sec. 203(b)(1)), month by month from January until it is used up, a
+#' partial last month shared in proportion; what is left, and the excess of
+#' anyone without a retirement benefit, is withheld from their own spouse's
+#' or survivor's benefit. Disability benefits are not tested. From NRA the
+#' reduction of a retirement, spouse's or widow(er)'s benefit leaves out
+#' the months with a deduction (sec. 202(q)(7)), and before 2000 months
+#' withheld from a retirement benefit after NRA earn delayed credits. The
+#' test stops at the person's retired-worker NRA, or the survivor NRA for a
+#' widow(er) with no retirement benefit. The output then has `withheld` and
+#' `paid` (`total` is the amount due before the test).
+#'
+#' Not covered: divorce, remarriage, the marriage-length
 #' requirements, disability recovery (and so the freeze for a retiree who
 #' was once disabled), a child entitled on more than one record, and a
 #' worker who becomes insured only after the month they claim.
@@ -65,6 +79,7 @@
 #' @param months Calendar months to compute in each year: `1:12` (default)
 #'   for every month, or a single month such as `6` for one row a year.
 #' @inheritParams retired_worker
+#' @inheritParams benefit_stream
 #' @param chunk_size Rows per call to the one-call functions; it does not
 #'   change results.
 #' @return A tibble with one row per person (and child) and month from
@@ -90,7 +105,9 @@
 #' lb[lb$id == 2 & lb$benefit_year %in% c(2029, 2031, 2043), ]
 lifetime_benefits <- function(earnings, people, children = NULL, months = 1:12,
                               first_year = NULL, policy = current_law(),
-                              chunk_size = 250000) {
+                              chunk_size = 250000, earnings_test = FALSE,
+                              grace_year = c("prorate", "none", "annual")) {
+  grace_year <- match.arg(grace_year)
   if (!is.data.frame(people)) abort_field("people", "must be a data frame")
   need <- setdiff(c("id", "birth_year", "birth_month", "death_age"), names(people))
   if (length(need)) abort_field("people", paste("needs columns", paste(need, collapse = ", ")))
@@ -98,6 +115,9 @@ lifetime_benefits <- function(earnings, people, children = NULL, months = 1:12,
   check_stream_args(1, chunk_size)
   months <- as_whole("months", months)
   check("months", months < 1 | months > 12, "must be 1 to 12")
+  # the earnings test charges every month, so compute them all
+  months_out <- months
+  if (earnings_test) months <- 1:12
   np <- nrow(people)
   col <- function(name, default) {
     if (name %in% names(people)) people[[name]] else rep(default, np)
@@ -288,28 +308,52 @@ lifetime_benefits <- function(earnings, people, children = NULL, months = 1:12,
   pw <- pg$w
   pt <- pg$t
   n <- length(pw)
-  own_type <- rep(NA_character_, n)
-  own_benefit <- rep(0, n)
-  own_pia <- rep(NA_real_, n)
-  own_mfb <- rep(NA_real_, n)
-
-  # ---- own benefits ----
   run_rows <- function(rows, fun) {
     out <- lapply(chunks(length(rows), chunk_size), function(r) fun(rows[r]))
     do.call(rbind, out)
   }
+  cg <- grid(c_start, c_end)
+  child_n <- length(cg$w)
+
+  # Everything from here depends on the months withheld under the earnings
+  # test: before NRA on a person's own benefit (own_wm) and auxiliary
+  # benefit (aux_wm), and after NRA on their own benefit (credit events
+  # cr_w, cr_y). Without the test they are all zero.
+  schedule <- function(own_wm, aux_wm, cr_w = numeric(), cr_y = numeric()) {
+  own_type <- rep(NA_character_, n)
+  own_benefit <- rep(0, n)
+  own_pia <- rep(NA_real_, n)
+  own_mfb <- rep(NA_real_, n)
+  own_factor_row <- rep(NA_real_, n)
+  wf <- worker_factor
+  if (any(own_wm > 0 | tabulate(cr_w, np) > 0)) {
+    # a deceased worker's factor for the widow(er)'s limit, with the
+    # reduction adjusted if the worker reached NRA
+    r <- wf_rows[ret[wf_rows] & entitled[wf_rows] & death_age[wf_rows] > nra[wf_rows] &
+                   (own_wm[wf_rows] > 0 | tabulate(cr_w, np)[wf_rows] > 0)]
+    if (length(r)) {
+      wf[r] <- benefit_factor(by[r], bm[r], fc[r], bd[r], pmax(fc[r] + 12, nra[r]), policy,
+                              withheld_months = own_wm[r],
+                              withheld_credits = tabulate(cr_w, np)[r])
+    }
+  }
+
+  # ---- own benefits ----
   own_rows <- which(pt >= own_start[pw])
   rr <- own_rows[ret[pw[own_rows]]]
   if (length(rr)) {
     res <- run_rows(rr, function(x) {
       w <- pw[x]
       retired_worker(M[w, , drop = FALSE], by[w], bm[w], claim[w], first_year = first,
-                     birth_day = bd[w], benefit_age = pt[x] - k[w], policy = policy)
+                     birth_day = bd[w], benefit_age = pt[x] - k[w], policy = policy,
+                     withheld_months = own_wm[w],
+                     withheld_credits = credits_for(w, pt[x], k, cr_w, cr_y))
     })
     own_benefit[rr] <- res$benefit
     own_pia[rr] <- res$pia
     own_mfb[rr] <- res$mfb
     own_type[rr] <- "retired"
+    own_factor_row[rr] <- res$factor
   }
   dr <- own_rows[di[pw[own_rows]]]
   if (length(dr)) {
@@ -351,8 +395,6 @@ lifetime_benefits <- function(earnings, people, children = NULL, months = 1:12,
 
   # ---- record values: the worker's PIA and maximum in each month ----
   fam_rows <- which(!is.na(aux_type))
-  cg <- grid(c_start, c_end)
-  child_n <- length(cg$w)
   rec_j <- c(sp[pw[fam_rows]], cp[cg$w])
   rec_t <- c(pt[fam_rows], cg$t)
   rkey <- unique(rec_j * 1e5 + rec_t)
@@ -425,9 +467,11 @@ lifetime_benefits <- function(earnings, people, children = NULL, months = 1:12,
       auxes[[1]] <- auxiliary(
         kind, by[wi], bm[wi], claim_age = aux_claim[x], birth_day = bd[wi],
         guarantee_pia = gp,
-        worker_factor = if (kind %in% WIDOW_KINDS) worker_factor[jj],
+        worker_factor = if (kind %in% WIDOW_KINDS) wf[jj],
         own_pia = ifelse(dual, own_pia[x], NA),
-        own_factor = ifelse(dual, own_factor[wi], 1))
+        own_factor = ifelse(dual, ifelse(own_wm[wi] > 0 & !is.na(own_factor_row[x]),
+                                         own_factor_row[x], own_factor[wi]), 1),
+        withheld_months = aux_wm[wi])
     }
     if (nslot > 0) {
       for (s in seq_len(nslot)) {
@@ -474,5 +518,31 @@ lifetime_benefits <- function(earnings, people, children = NULL, months = 1:12,
     out <- rbind(person, kid)
   }
   out$total <- out$own_benefit + out$aux_benefit
-  out
+  list(out = out, own_type = own_type, own_benefit = own_benefit, aux_type = aux_type,
+       aux_benefit = ifelse(is.na(aux_type), 0, aux_benefit), child_benefit = child_benefit)
+  }
+
+  sch <- schedule(rep(0, np), rep(0, np))
+  if (earnings_test) {
+    # the survivor NRA tests a widow(er) with no retirement benefit
+    surv_nra <- at(policy$nra, kb$year + 60, "nra")
+    test_nra <- ifelse(entitled | !is.finite(widow_start), nra, surv_nra)
+    # withholding depends on the benefits, and the benefits from NRA on the
+    # months withheld: repeat until the months withheld settle
+    used <- c(rep(0, 2 * np), 0)
+    for (pass in 1:5) {
+      ch <- charge_family(sch, M, first, k, pw, pt, sp, cp[cg$w], cg$t, ret & entitled,
+                          nra, surv_nra, test_nra, grace_year, policy)
+      key <- c(ch$own_wm, ch$aux_wm, length(ch$cr_w))
+      if (identical(key, used)) break
+      used <- key
+      sch <- schedule(ch$own_wm, ch$aux_wm, ch$cr_w, ch$cr_y)
+    }
+    out <- sch$out
+    out$withheld <- round(c(ch$person_withheld, ch$child_withheld), 2)
+    out$paid <- out$total - out$withheld
+  } else {
+    out <- sch$out
+  }
+  out[(out$benefit_month %in% months_out), , drop = FALSE]
 }

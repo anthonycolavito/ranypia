@@ -78,7 +78,7 @@ These are not errors: the Act is silent or general, and ranypia follows the rule
 
 Already listed in the README or the lifetime plan; the Act provisions are noted so they can be picked up later.
 
-- **Earnings test**, §203(b) and (f), and the adjustment of the reduction factor at full retirement age, §202(q)(7). This also leaves out the widow(er)'s limit for a reduced disability benefit after a reduced retirement benefit. *Will incorporate eventually, make note.*
+- **Earnings test**, §203(b) and (f), and the adjustment of the reduction factor at full retirement age, §202(q)(7). This also leaves out the widow(er)'s limit for a reduced disability benefit after a reduced retirement benefit. *Will incorporate eventually, make note.* *Built 2026-10-12, measured on annual earnings: `docs/superpowers/specs/2026-10-12-earnings-test-design.md`.*
 - **Divorced spouses and surviving divorced spouses**, §202(b)–(f), paid outside the family maximum under §203(a)(3)(C); **remarriage**; and the **marriage-length requirements** of §216(b)–(g). *Will incorporate eventually, make note.*
 - **Disabled widow(er)s** in `lifetime_benefits()`, §202(e)(1)(B)(ii) (the 71.5% factor is in `family_benefits()`); **disability recovery**; and **prior disability** rules in §215(a)(2)(A) and §215(b)(2)(B). *Need more explanation (see below).*
 - **Pre-1979 computation methods**, **totalization** (§233) and the **lump-sum death payment** (§202(i)). *We will want to incorporate pre-1979 computation methods and lump-sum death payments. We will ignore totalization.*
