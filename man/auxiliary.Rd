@@ -15,7 +15,8 @@ auxiliary(
   worker_factor = NULL,
   own_pia = NULL,
   own_factor = 1,
-  end_age = NULL
+  end_age = NULL,
+  withheld_months = 0
 )
 }
 \arguments{
@@ -59,6 +60,10 @@ the month before they attain 18 (\code{end_age = 216}), or 19 for a
 full-time elementary or secondary student, and continues for a child
 disabled before 22 (20 CFR 404.352); a spouse or parent with a child in
 care stops when the youngest child attains 16.}
+
+\item{withheld_months}{For a spouse or widow(er): months before their
+NRA with benefits withheld under the earnings test. From the NRA
+benefit month on, the age reduction leaves them out (sec. 202(q)(7)).}
 }
 \value{
 A \code{ranypia_auxiliary}.

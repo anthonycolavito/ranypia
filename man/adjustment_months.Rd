@@ -11,17 +11,15 @@ adjustment_months(
   birth_day = 15,
   benefit_age = NULL,
   policy = current_law(),
-  credits_from = NULL
+  credits_from = NULL,
+  withheld_months = 0,
+  withheld_credits = 0
 )
 }
 \arguments{
-\item{birth_year}{Date of birth.}
-
-\item{birth_month}{Date of birth.}
+\item{birth_year, birth_month, birth_day}{Date of birth.}
 
 \item{claim_age}{Age at entitlement, in months.}
-
-\item{birth_day}{Date of birth.}
 
 \item{benefit_age}{Age in the benefit month (default \code{claim_age}).}
 
@@ -29,6 +27,14 @@ adjustment_months(
 
 \item{credits_from}{Internal: the month index from which credits may
 start (the first quarter fully insured), when later than NRA.}
+
+\item{withheld_months}{Months before NRA with benefits withheld under the
+earnings test (a full or partial deduction). From the NRA benefit month
+on, the reduction leaves them out (sec. 202(q)(7)).}
+
+\item{withheld_credits}{Months from NRA with benefits withheld under the
+earnings test, which earned delayed credits before 2000 (sec. 202(w));
+pass only those already credited by the benefit month.}
 }
 \value{
 A list with \code{reduction} and \code{credit} months.

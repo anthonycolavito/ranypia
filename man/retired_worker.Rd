@@ -14,7 +14,9 @@ retired_worker(
   benefit_age = NULL,
   noncovered_pension = 0,
   people = NULL,
-  policy = current_law()
+  policy = current_law(),
+  withheld_months = 0,
+  withheld_credits = 0
 )
 }
 \arguments{
@@ -39,6 +41,14 @@ long earnings, rows are matched by id. Several rows may share an id
 row, in earnings order and then people order.}
 
 \item{policy}{A \code{\link[=current_law]{current_law()}} policy.}
+
+\item{withheld_months}{Months before NRA with benefits withheld under the
+earnings test (a full or partial deduction). From the NRA benefit month
+on, the reduction leaves them out (sec. 202(q)(7)).}
+
+\item{withheld_credits}{Months from NRA with benefits withheld under the
+earnings test, which earned delayed credits before 2000 (sec. 202(w));
+pass only those already credited by the benefit month.}
 }
 \value{
 A tibble with one row per worker: \code{elig_year}, \code{aime}, \code{pia_elig}

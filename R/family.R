@@ -49,6 +49,9 @@ WIDOW_LIMIT_PCT <- 0.825
 #'   full-time elementary or secondary student, and continues for a child
 #'   disabled before 22 (20 CFR 404.352); a spouse or parent with a child in
 #'   care stops when the youngest child attains 16.
+#' @param withheld_months For a spouse or widow(er): months before their
+#'   NRA with benefits withheld under the earnings test. From the NRA
+#'   benefit month on, the age reduction leaves them out (sec. 202(q)(7)).
 #' @return A `ranypia_auxiliary`.
 #' @export
 #' @examples
@@ -60,7 +63,7 @@ WIDOW_LIMIT_PCT <- 0.825
 auxiliary <- function(kind, birth_year = 1960, birth_month = 1, claim_age = 0,
                       birth_day = 15, present = TRUE, guarantee_pia = NULL,
                       worker_factor = NULL, own_pia = NULL, own_factor = 1,
-                      end_age = NULL) {
+                      end_age = NULL, withheld_months = 0) {
   kinds <- union(names(LIFE_RATES), names(SURVIVOR_RATES))
   if (!kind %in% kinds) {
     abort_field("kind", sprintf("must be one of %s", paste(kinds, collapse = ", ")))
@@ -71,7 +74,8 @@ auxiliary <- function(kind, birth_year = 1960, birth_month = 1, claim_age = 0,
   structure(list(kind = kind, birth_year = birth_year, birth_month = birth_month,
                  claim_age = claim_age, birth_day = birth_day, present = present,
                  guarantee_pia = guarantee_pia, worker_factor = worker_factor,
-                 own_pia = own_pia, own_factor = own_factor, end_age = end_age),
+                 own_pia = own_pia, own_factor = own_factor, end_age = end_age,
+                 withheld_months = withheld_months),
             class = "ranypia_auxiliary")
 }
 
@@ -83,8 +87,14 @@ as_num_na <- function(name, x) {
   x
 }
 
-aux_reduction <- function(aux, n, policy) {
+# The age-reduction factor; `ben_idx` is the benefit month, from which a
+# member past their NRA has the months withheld under the earnings test left
+# out of the reduction.
+aux_reduction <- function(aux, n, policy, ben_idx) {
   claim <- recycle_to(as_whole("claim_age", aux$claim_age), "claim_age", n)
+  wm <- recycle_to(as_whole("withheld_months",
+                            if (is.null(aux$withheld_months)) 0 else aux$withheld_months),
+                   "withheld_months", n)
   present <- recycle_to(as.logical(aux$present), "present", n)
   if (!aux$kind %in% REDUCIBLE) return(rep(1, n))
   if (aux$kind == "disabled_widow") {
@@ -92,19 +102,24 @@ aux_reduction <- function(aux, n, policy) {
           "a disabled widow(er) claims at 50-59")
     return(rep(DISABLED_WIDOW_FACTOR, n))
   }
-  ky <- recycle_to(adjusted_birth(aux$birth_year, aux$birth_month, aux$birth_day)$year,
-                   "birth_year", n)
+  kb <- adjusted_birth(aux$birth_year, aux$birth_month, aux$birth_day)
+  ky <- recycle_to(kb$year, "birth_year", n)
+  age <- recycle_to(ben_idx, "benefit_year", n) -
+    recycle_to(month_index(kb$year, kb$month), "birth_year", n)
   if (aux$kind == "spouse") {
     earliest <- recycle_to(earliest_claim_age(aux$birth_day), "birth_day", n)
     check("claim_age", present & claim < earliest,
           "a spouse claims before the earliest retirement age")
     nra <- at(policy$nra, ky + 62, "nra")
-    return(spouse_reduction_factor(pmax(nra - claim, 0), policy))
+    months <- pmax(nra - claim, 0)
+    months <- ifelse(age >= nra, pmax(months - wm, 0), months)
+    return(spouse_reduction_factor(months, policy))
   }
   check("claim_age", present & claim < 720, "a widow(er) claims before 60")
   # a widow(er)'s NRA is the worker's schedule shifted two years
   nra <- at(policy$nra, ky + 60, "nra")
   months <- pmax(nra - claim, 0)
+  months <- ifelse(age >= nra, pmax(months - wm, 0), months)
   1 - (months / (nra - 720)) * WIDOW_MAX_REDUCTION
 }
 
@@ -204,7 +219,7 @@ family_benefits <- function(worker_pia, worker_mfb, auxiliaries, benefit_year,
       own_reduced[[length(fulls) + 1]] <- rep(0, n)
     }
     fulls[[length(fulls) + 1]] <- ifelse(present, round_benefit(base * rates[[aux$kind]], cy), 0)
-    factors[[length(factors) + 1]] <- aux_reduction(aux, n, policy)
+    factors[[length(factors) + 1]] <- aux_reduction(aux, n, policy, ben_idx)
     limits[[length(limits) + 1]] <- limit
     duals[[length(duals) + 1]] <- dual
     owns[[length(owns) + 1]] <- own

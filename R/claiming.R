@@ -98,11 +98,18 @@ delayed_credit_factor <- function(months, elig_year, policy = current_law()) {
 #' @param policy A [current_law()] policy.
 #' @param credits_from Internal: the month index from which credits may
 #'   start (the first quarter fully insured), when later than NRA.
+#' @param withheld_months Months before NRA with benefits withheld under the
+#'   earnings test (a full or partial deduction). From the NRA benefit month
+#'   on, the reduction leaves them out (sec. 202(q)(7)).
+#' @param withheld_credits Months from NRA with benefits withheld under the
+#'   earnings test, which earned delayed credits before 2000 (sec. 202(w));
+#'   pass only those already credited by the benefit month.
 #' @return A list with `reduction` and `credit` months.
 #' @export
 adjustment_months <- function(birth_year, birth_month, claim_age, birth_day = 15,
                               benefit_age = NULL, policy = current_law(),
-                              credits_from = NULL) {
+                              credits_from = NULL, withheld_months = 0,
+                              withheld_credits = 0) {
   kb <- adjusted_birth(birth_year, birth_month, birth_day)
   claim <- as_whole("claim_age", claim_age)
   ben_age <- if (is.null(benefit_age)) claim else as_whole("benefit_age", benefit_age)
@@ -127,14 +134,20 @@ adjustment_months <- function(birth_year, birth_month, claim_age, birth_day = 15
                         ifelse(age70 <= ben | ben %/% 12 > ent %/% 12, ent,
                                pmax(fra, jan_ent)))
   late <- claim >= nra
-  list(reduction = ifelse(late, 0, nra - claim),
-       credit = ifelse(late, pmax(credited_to - start, 0), 0))
+  wm <- recycle_to(as_whole("withheld_months", withheld_months), "withheld_months", n)
+  wc <- recycle_to(as_whole("withheld_credits", withheld_credits), "withheld_credits", n)
+  reduction <- ifelse(late, 0, nra - claim)
+  reduction <- ifelse(ben_age >= nra, pmax(reduction - wm, 0), reduction)
+  list(reduction = reduction,
+       credit = ifelse(late, pmax(credited_to - start, 0), 0) + wc)
 }
 
 #' Benefit factor for a retired worker
 #'
 #' The multiplier on the PIA for a worker claiming at `claim_age`, for the
-#' benefit paid at `benefit_age`.
+#' benefit paid at `benefit_age`. A reduced benefit with delayed credits
+#' (months withheld after NRA under the earnings test before 2000) gets the
+#' reduction factor plus the credits.
 #'
 #' @inheritParams adjustment_months
 #' @return Factors.
@@ -143,13 +156,16 @@ adjustment_months <- function(birth_year, birth_month, claim_age, birth_day = 15
 #' benefit_factor(1960, 6, c(62 * 12 + 1, 67 * 12, 70 * 12))
 benefit_factor <- function(birth_year, birth_month, claim_age, birth_day = 15,
                            benefit_age = NULL, policy = current_law(),
-                           credits_from = NULL) {
+                           credits_from = NULL, withheld_months = 0,
+                           withheld_credits = 0) {
   adj <- adjustment_months(birth_year, birth_month, claim_age, birth_day, benefit_age,
-                           policy, credits_from)
+                           policy, credits_from, withheld_months, withheld_credits)
   elig <- rep_len(adjusted_birth(birth_year, birth_month, birth_day)$year + 62,
                   length(adj$reduction))
-  ifelse(adj$reduction > 0, early_reduction_factor(adj$reduction, policy),
-         delayed_credit_factor(adj$credit, elig, policy))
+  credited <- delayed_credit_factor(adj$credit, elig, policy)
+  reduced <- early_reduction_factor(adj$reduction, policy)
+  ifelse(adj$reduction > 0, ifelse(adj$credit > 0, reduced + (credited - 1), reduced),
+         credited)
 }
 
 #' Monthly benefit payable

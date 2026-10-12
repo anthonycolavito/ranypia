@@ -114,6 +114,7 @@ apply_wep_if_enabled <- function(pia_elig, aime_v, elig, m, first, last_year, be
 #'   long earnings, rows are matched by id. Several rows may share an id
 #'   (one worker under several claim ages, say); each gets its own output
 #'   row, in earnings order and then people order.
+#' @inheritParams adjustment_months
 #' @param policy A [current_law()] policy.
 #' @return A tibble with one row per worker: `elig_year`, `aime`, `pia_elig`
 #'   (wage-indexed PIA at eligibility), `pia` and `mfb` (in the benefit
@@ -126,15 +127,17 @@ apply_wep_if_enabled <- function(pia_elig, aime_v, elig, m, first, last_year, be
 #' retired_worker(earnings, 1964, 6, c(62 * 12 + 1, 67 * 12, 70 * 12))
 retired_worker <- function(earnings, birth_year, birth_month, claim_age, first_year = NULL,
                            birth_day = 15, benefit_age = NULL, noncovered_pension = 0,
-                           people = NULL, policy = current_law()) {
+                           people = NULL, policy = current_law(), withheld_months = 0,
+                           withheld_credits = 0) {
   e <- as_earnings(earnings, first_year)
   fp <- fill_from_people(people, names(match.call())[-1],
                           c("birth_year", "birth_month", "birth_day", "claim_age",
-                            "benefit_age", "noncovered_pension"),
+                            "benefit_age", "noncovered_pension", "withheld_months",
+                            "withheld_credits"),
                           environment(), e$ids)
   ids <- if (is.null(fp$ids)) e$ids else fp$ids
   m <- expand_rows(take_rows(e$m, fp$rows), birth_year, birth_month, birth_day, claim_age,
-                   benefit_age, noncovered_pension)
+                   benefit_age, noncovered_pension, withheld_months, withheld_credits)
   first <- e$first
   n <- nrow(m)
   by <- rows_of(birth_year, "birth_year", n)
@@ -181,7 +184,9 @@ retired_worker <- function(earnings, birth_year, birth_month, claim_age, first_y
                             cum[searching, , drop = FALSE])
     credits_from[searching[hit]] <- start[searching[hit]]
   }
-  factor <- benefit_factor(by, bm, claim, bd, ben_age, policy, credits_from)
+  factor <- benefit_factor(by, bm, claim, bd, ben_age, policy, credits_from,
+                           rows_of(withheld_months, "withheld_months", n),
+                           rows_of(withheld_credits, "withheld_credits", n))
   cy <- cola_year(ben$year, ben$month)
   # The higher PIA wins (ties to the wage-indexed method). Delayed credits
   # never apply to a special minimum, so a worker past NRA gets the larger of
