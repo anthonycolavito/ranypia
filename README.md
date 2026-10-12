@@ -54,6 +54,28 @@ family_benefits(b$pia, b$mfb, list(auxiliary("spouse", 1966, 3, claim_age = 64 *
 #> 1      1      1 spouse 1499.     1499.            0.771    1155
 ```
 
+## Stylized workers
+
+`stylized_earnings()` builds the earnings history of a hypothetical
+worker, ready to pass to any function as `earnings`: the Office of the
+Chief Actuary's scaled workers (very low, low, medium and high, from
+Actuarial Note 2026.3) and the maximum earner, or a worker at any level.
+`scaled_factors()` gives the actuaries' factors, unrounded.
+
+```r
+stylized_earnings(1964)                                  # the medium worker
+stylized_earnings(1960, type = c("very_low", "low", "medium", "high", "max"))
+stylized_earnings(1970, level = 1.1)                     # career average 110% of the AWI
+stylized_earnings(1970, level = 1.1, shape = "steady")   # 110% of the AWI every year
+stylized_earnings(1970, real_level = 60000)              # $60,000 in 2026 dollars
+```
+
+Scaled workers have the actuaries' age profile from 21 to 64, scaled so
+their career average (the 35 highest years, wage-indexed to age 64) is the
+given share of the AWI. Steady workers earn the same share of the AWI, or
+the same real amount, every year. Real amounts use the Trustees' GDP price
+index.
+
 ## Microsimulation with panel data
 
 Earnings can be a long data frame (`id`, `year`, `earnings`), and the
@@ -173,6 +195,7 @@ those is usable alone.
 | `auxiliary()`, `family_benefits()` | spouse, child and survivor benefits under the family maximum |
 | `widow_guarantee_pia()` | the re-indexed widow(er)'s guarantee |
 | `wep_pia()`, `gpo_offset()` | the repealed WEP and GPO, off by default |
+| `stylized_earnings()`, `scaled_factors()` | hypothetical earnings histories |
 | `retired_worker()`, `disabled_worker()`, `deceased_worker()` | the whole chain in one call |
 | `benefit_stream()`, `disabled_stream()` | a retired or disabled worker's benefits to a final age |
 | `lifetime_benefits()` | a panel's benefits of every type until death |

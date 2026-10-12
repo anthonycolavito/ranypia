@@ -135,3 +135,17 @@ project_special_min <- function(cpiinc, last_year, amount) {
   }
   list(pia = pia_t, mfb = mfb_t, pia_aug2001 = pia01, mfb_aug2001 = mfb01)
 }
+
+# Price index levels: the history, then compounded by projected growth (in
+# percent) after the last historical year. All NA without a history.
+project_prices <- function(hist, growth) {
+  if (is.null(hist) || !length(hist)) return(rep(NA_real_, N_YEARS))
+  out <- to_series(hist)
+  if (is.null(growth) || !length(growth)) return(out)
+  g <- to_series(growth)
+  for (y in seq(max(as.numeric(names(hist))) + 1, LAST_YEAR)) {
+    if (is.na(g[yi(y)])) break
+    out[yi(y)] <- out[yi(y - 1)] * (1 + g[yi(y)] / 100)
+  }
+  out
+}

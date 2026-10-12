@@ -1,5 +1,15 @@
 # ranypia (development version)
 
+* New `stylized_earnings()`: hypothetical earnings histories. The Office of
+  the Chief Actuary's scaled workers (very low, low, medium, high) and the
+  maximum earner, or a worker at any level, as a share of the AWI
+  (`level = 1.1`) or in constant dollars (`real_level`), with the
+  actuaries' age profile (`shape = "scaled"`) or the same amount every year
+  (`"steady"`). New `scaled_factors()` gives the factors of Actuarial Note
+  2026.3, unrounded: recovered from the note's worked example, they round to
+  its published table exactly and reproduce its examples to the cent.
+* The policy carries the GDP price index (`gdp_price_hist`,
+  `gdp_price_growth`, series `gdp_price`), for constant-dollar earnings.
 * The retirement earnings test (sections 203(b), (f) and 202(q)(7)),
   measured on annual earnings. New `earnings_test()` gives a year's excess
   earnings, under the rules from 2000 and before. `current_law()` carries

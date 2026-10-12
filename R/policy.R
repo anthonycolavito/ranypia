@@ -3,7 +3,7 @@
 
 #' @noRd
 SERIES <- c("awi", "cola", "taxmax", "base77", "qc_amount", "yoc_specmin", "yoc_wep", "nra",
-            "ret_lower", "ret_higher")
+            "ret_lower", "ret_higher", "gdp_price")
 
 PRIMITIVES <- c(
   "awi_hist", "awi_growth", "cola_hist", "cola_proj", "taxmax_hist", "base77_hist",
@@ -11,7 +11,7 @@ PRIMITIVES <- c(
   "ar_rate_later", "ar_months_first", "spouse_ar_rate_first", "drc_rate", "qc_hist", "qc_base",
   "spec_min_amount", "wep_enabled", "gpo_enabled", "gpo_fraction", "ret_enabled",
   "ret_lower_hist", "ret_higher_hist", "ret_lower_base", "ret_higher_base", "ret_rate_lower",
-  "ret_rate_higher", "overrides"
+  "ret_rate_higher", "gdp_price_hist", "gdp_price_growth", "overrides"
 )
 
 # Earnings needed for a quarter of coverage, as SSA published them
@@ -76,6 +76,13 @@ statutory_drc <- function(elig_year) {
 #' `ret_rate_lower` (1/2) and `ret_rate_higher` (1/3); `ret_enabled = FALSE`
 #' repeals the test. The derived series are `ret_lower` and `ret_higher`.
 #'
+#' The GDP price index, which [stylized_earnings()] uses for constant-dollar
+#' earnings: index levels (`gdp_price_hist`, named by year; 1959 = 1,
+#' history through 2025) and the Trustees' projected annual growth in
+#' percent (`gdp_price_growth`, 2026-2100), giving the series `gdp_price`.
+#' It has no values before 1959 or after 2100. Only the ratio of two years'
+#' values is used, so the base year doesn't matter.
+#'
 #' The `cola` series holds each increase as originally computed, so
 #' December 1999 is 2.4%. A CPI error understated it; the law that fixed it
 #' pays benefits from July 2001 as if it had been 2.5%, and the functions
@@ -122,6 +129,8 @@ current_law <- function(alt = 2) {
     ret_higher_base = 2500,
     ret_rate_lower = 1 / 2,
     ret_rate_higher = 1 / 3,
+    gdp_price_hist = d$GDP_PRICE,
+    gdp_price_growth = d[[paste0("GDP_PRICE_PROJ_ALT", alt)]],
     overrides = list()
   ))
 }
@@ -221,12 +230,14 @@ new_policy <- function(p) {
   drc <- if (is.null(p$drc_rate)) statutory_drc(years) else rep(as.numeric(p$drc_rate), N_YEARS)
   sm <- project_special_min(cola, LAST_YEAR, p$spec_min_amount)
   ret <- project_exempt_amounts(p, awi, cola)
+  gdp_price <- finish("gdp_price", project_prices(p$gdp_price_hist, p$gdp_price_growth))
 
   structure(c(p, list(
     awi = awi, cola = cola, taxmax = taxmax, base77 = base77, qc_amount = qc_amount,
     yoc_specmin = finish("yoc_specmin", yoc_specmin), yoc_wep = finish("yoc_wep", yoc_wep),
     nra = nra, drc_rate_by_elig = drc,
     ret_lower = finish("ret_lower", ret$lower), ret_higher = finish("ret_higher", ret$higher),
+    gdp_price = gdp_price,
     spec_min_pia = sm$pia, spec_min_mfb = sm$mfb,
     spec_min_pia_aug2001 = sm$pia_aug2001, spec_min_mfb_aug2001 = sm$mfb_aug2001
   )), class = "ranypia_policy")
