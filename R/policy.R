@@ -2,13 +2,16 @@
 # series derived from them (ported from pyanypia's policy.py).
 
 #' @noRd
-SERIES <- c("awi", "cola", "taxmax", "base77", "qc_amount", "yoc_specmin", "yoc_wep", "nra")
+SERIES <- c("awi", "cola", "taxmax", "base77", "qc_amount", "yoc_specmin", "yoc_wep", "nra",
+            "ret_lower", "ret_higher")
 
 PRIMITIVES <- c(
   "awi_hist", "awi_growth", "cola_hist", "cola_proj", "taxmax_hist", "base77_hist",
   "pia_bend_base", "pia_pct", "mfb_bend_base", "mfb_pct", "ar_rate_first",
   "ar_rate_later", "ar_months_first", "spouse_ar_rate_first", "drc_rate", "qc_hist", "qc_base",
-  "spec_min_amount", "wep_enabled", "gpo_enabled", "gpo_fraction", "overrides"
+  "spec_min_amount", "wep_enabled", "gpo_enabled", "gpo_fraction", "ret_enabled",
+  "ret_lower_hist", "ret_higher_hist", "ret_lower_base", "ret_higher_base", "ret_rate_lower",
+  "ret_rate_higher", "overrides"
 )
 
 # Earnings needed for a quarter of coverage, as SSA published them
@@ -65,6 +68,21 @@ statutory_drc <- function(elig_year) {
 #' for 1978-2026). Only later years are projected, so a reform to a
 #' projection input such as `qc_base` changes only future years.
 #'
+#' The retirement earnings test (see [earnings_test()]): annual exempt
+#' amounts as SSA published them for 1975-2026 (`ret_lower_hist`,
+#' `ret_higher_hist`), projected after 2026 by sec. 203(f)(8) from monthly
+#' bases of $670 for 1994 (`ret_lower_base`, indexed from the 1992 AWI) and
+#' $2,500 for 2002 (`ret_higher_base`, from the 2000 AWI); withholding rates
+#' `ret_rate_lower` (1/2) and `ret_rate_higher` (1/3); `ret_enabled = FALSE`
+#' repeals the test. The derived series are `ret_lower` and `ret_higher`.
+#'
+#' The `cola` series holds each increase as originally computed, so
+#' December 1999 is 2.4%. A CPI error understated it; the law that fixed it
+#' pays benefits from July 2001 as if it had been 2.5%, and the functions
+#' that carry amounts forward ([apply_colas()], the special minimum and the
+#' PIA projection) add the extra 0.1 point themselves, as SSA's calculator
+#' does. Don't set 1999 to 2.5 here: the correction would be counted twice.
+#'
 #' @param alt Trustees Report alternative: 1 (low cost), 2 (intermediate) or
 #'   3 (high cost).
 #' @return A `ranypia_policy`.
@@ -97,6 +115,13 @@ current_law <- function(alt = 2) {
     wep_enabled = FALSE,
     gpo_enabled = FALSE,
     gpo_fraction = 2 / 3,
+    ret_enabled = TRUE,
+    ret_lower_hist = RET_LOWER_HIST,
+    ret_higher_hist = RET_HIGHER_HIST,
+    ret_lower_base = 670,
+    ret_higher_base = 2500,
+    ret_rate_lower = 1 / 2,
+    ret_rate_higher = 1 / 3,
     overrides = list()
   ))
 }
@@ -195,11 +220,13 @@ new_policy <- function(p) {
   nra <- finish("nra", statutory_nra(years))
   drc <- if (is.null(p$drc_rate)) statutory_drc(years) else rep(as.numeric(p$drc_rate), N_YEARS)
   sm <- project_special_min(cola, LAST_YEAR, p$spec_min_amount)
+  ret <- project_exempt_amounts(p, awi, cola)
 
   structure(c(p, list(
     awi = awi, cola = cola, taxmax = taxmax, base77 = base77, qc_amount = qc_amount,
     yoc_specmin = finish("yoc_specmin", yoc_specmin), yoc_wep = finish("yoc_wep", yoc_wep),
     nra = nra, drc_rate_by_elig = drc,
+    ret_lower = finish("ret_lower", ret$lower), ret_higher = finish("ret_higher", ret$higher),
     spec_min_pia = sm$pia, spec_min_mfb = sm$mfb,
     spec_min_pia_aug2001 = sm$pia_aug2001, spec_min_mfb_aug2001 = sm$mfb_aug2001
   )), class = "ranypia_policy")
@@ -212,7 +239,8 @@ print.ranypia_policy <- function(x, ...) {
       "with 1979 bend points", paste(x$pia_bend_base, collapse = ", "), "\n")
   cat("  2026 taxable maximum:", format(x$taxmax[yi(2026)], big.mark = ","), "\n")
   cat("  WEP:", if (isTRUE(x$wep_enabled)) "on" else "off",
-      " GPO:", if (isTRUE(x$gpo_enabled)) "on" else "off", "\n")
+      " GPO:", if (isTRUE(x$gpo_enabled)) "on" else "off",
+      " earnings test:", if (isTRUE(x$ret_enabled)) "on" else "off", "\n")
   n_over <- length(x$overrides)
   if (n_over) cat("  pinned series:", paste(names(x$overrides), collapse = ", "), "\n")
   invisible(x)

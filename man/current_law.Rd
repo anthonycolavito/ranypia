@@ -32,6 +32,21 @@ maximums, and the earnings needed for a quarter of coverage (\code{qc_hist}:
 the Act's $50 a calendar quarter before 1978, and SSA's published amounts
 for 1978-2026). Only later years are projected, so a reform to a
 projection input such as \code{qc_base} changes only future years.
+
+The retirement earnings test (see \code{\link[=earnings_test]{earnings_test()}}): annual exempt
+amounts as SSA published them for 1975-2026 (\code{ret_lower_hist},
+\code{ret_higher_hist}), projected after 2026 by sec. 203(f)(8) from monthly
+bases of $670 for 1994 (\code{ret_lower_base}, indexed from the 1992 AWI) and
+$2,500 for 2002 (\code{ret_higher_base}, from the 2000 AWI); withholding rates
+\code{ret_rate_lower} (1/2) and \code{ret_rate_higher} (1/3); \code{ret_enabled = FALSE}
+repeals the test. The derived series are \code{ret_lower} and \code{ret_higher}.
+
+The \code{cola} series holds each increase as originally computed, so
+December 1999 is 2.4\%. A CPI error understated it; the law that fixed it
+pays benefits from July 2001 as if it had been 2.5\%, and the functions
+that carry amounts forward (\code{\link[=apply_colas]{apply_colas()}}, the special minimum and the
+PIA projection) add the extra 0.1 point themselves, as SSA's calculator
+does. Don't set 1999 to 2.5 here: the correction would be counted twice.
 }
 \examples{
 pol <- current_law()
