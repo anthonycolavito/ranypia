@@ -166,3 +166,94 @@ ret_test_year <- function(e, y, k, ent, nra, grace_year, policy) {
   tibble::tibble(tested_months = tested, tested_earnings = counted, exempt = exempt,
                  rate = rate, excess = excess, first_year = first)
 }
+
+# Earnings in year `y` for each row of an earnings matrix (0 outside it).
+earnings_in_year <- function(m, first, y) {
+  col <- y - first + 1
+  ok <- col >= 1 & col <= ncol(m)
+  out <- rep(0, nrow(m))
+  out[ok] <- m[cbind(which(ok), col[ok])]
+  out[is.na(out)] <- 0
+  out
+}
+
+# The age (months) from which the test stops in each month index `t`.
+ret_stop_age <- function(t, nra) {
+  y <- t %/% 12
+  ifelse(y >= 2000, nra, ifelse(y <= 1982, 72 * 12, 70 * 12))
+}
+
+# Charges each year's excess earnings against a retired worker's benefits,
+# year by year from the claim (sec. 203(b), (f)(1)): whole months' benefits
+# from the first month tested until the excess is used up, the last month
+# only in part. `benefit_fn(rows, t, wm, wc)` gives the scheduled benefit for
+# workers `rows` in month indexes `t`, with `wm` months withheld before NRA
+# and `wc` credited months withheld after it. Returns the months withheld
+# before NRA (`wm`, one per worker), the credit events from months withheld
+# after NRA (`credit_w`, `credit_year`: credited from January of the year
+# after), and every withheld amount (`w`, `t`, `amount`).
+charge_retired <- function(m, first, k, claim, last, nra, grace_year, policy, benefit_fn) {
+  n <- length(k)
+  wm <- rep(0, n)
+  out_w <- out_t <- out_a <- numeric()
+  cr_w <- cr_y <- numeric()
+  ent <- k + claim
+  # months tested: entitled, before the test stops, and paid
+  y0 <- min(ent %/% 12)
+  y1 <- max((k + pmax(nra, 72 * 12)) %/% 12)
+  for (y in seq(y0, y1)) {
+    t0 <- 12 * y
+    cand <- which(ent <= t0 + 11 & k + last >= t0 & t0 - k < ret_stop_age(t0, nra))
+    if (!length(cand)) next
+    res <- ret_test_year(earnings_in_year(m[cand, , drop = FALSE], first, y), rep(y, length(cand)),
+                         k[cand], claim[cand], nra[cand], grace_year, policy)
+    hit <- cand[res$excess > 0]
+    if (!length(hit)) next
+    remaining <- res$excess[res$excess > 0]
+    # the year's months for those workers, in calendar order
+    rw <- rep(hit, each = 12)
+    rt <- t0 + rep(0:11, times = length(hit))
+    age <- rt - k[rw]
+    tested <- age >= claim[rw] & age < ret_stop_age(rt, nra[rw]) & age <= last[rw]
+    rw <- rw[tested]
+    rt <- rt[tested]
+    if (!length(rw)) next
+    # credits from withheld months after NRA in earlier years
+    wc <- credits_for(rw, rt, k, cr_w, cr_y)
+    ben <- benefit_fn(rw, rt, wm[rw], wc)
+    rem <- remaining[match(rw, hit)]
+    # whole months until the excess is used up: running total within worker
+    before <- stats::ave(ben, rw, FUN = function(x) cumsum(x) - x)
+    amount <- pmin(ben, pmax(rem - before, 0))
+    took <- amount > 0
+    out_w <- c(out_w, rw[took])
+    out_t <- c(out_t, rt[took])
+    out_a <- c(out_a, amount[took])
+    pre <- took & (rt - k[rw]) < nra[rw]
+    if (any(pre)) {
+      add <- tapply(rep(1, sum(pre)), rw[pre], sum)
+      wm[as.integer(names(add))] <- wm[as.integer(names(add))] + add
+    }
+    post <- took & !pre
+    if (any(post)) {
+      cr_w <- c(cr_w, rw[post])
+      cr_y <- c(cr_y, rep(y, sum(post)))
+    }
+  }
+  list(wm = wm, credit_w = cr_w, credit_year = cr_y, w = out_w, t = out_t, amount = out_a)
+}
+
+# Credited months for rows (w, t): months withheld after NRA in years before
+# t's year, or every one of them once the worker is 70.
+credits_for <- function(w, t, k, cr_w, cr_y, age70 = TRUE) {
+  if (!length(cr_w)) return(rep(0, length(w)))
+  out <- rep(0, length(w))
+  y <- t %/% 12
+  at70 <- age70 & (t - k[w]) >= 70 * 12
+  for (yr in unique(cr_y)) {
+    cnt <- tabulate(cr_w[cr_y == yr], nbins = max(c(w, cr_w)))
+    use <- yr < y | at70
+    out[use] <- out[use] + cnt[w[use]]
+  }
+  out
+}

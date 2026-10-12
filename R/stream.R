@@ -8,9 +8,18 @@
 #' [retired_worker()] gives with that `benefit_age`: the PIA carried forward
 #' by COLAs, the claiming factor, SSA's rounding, the special minimum, and
 #' recomputation for any earnings after entitlement (earnings in and after a
-#' benefit month's year are ignored for that month). There is no earnings
-#' test, mortality or discounting; `to_age` can differ by worker, so a death
-#' age from a microsimulation ends each stream.
+#' benefit month's year are ignored for that month). There is no mortality
+#' or discounting; `to_age` can differ by worker, so a death age from a
+#' microsimulation ends each stream.
+#'
+#' With `earnings_test = TRUE`, each year's earnings after the claim go
+#' through [earnings_test()], and the excess is withheld from the benefits
+#' month by month from January (or the claim month) until it is used up
+#' (sec. 203(b), (f)(1)). From NRA, the reduction leaves out every month
+#' with a deduction (sec. 202(q)(7)); before 2000, months withheld after
+#' NRA earn delayed credits from the next January (or at 70). `benefit` is
+#' then the benefit due before the test, `withheld` what the test holds
+#' back and `paid` the difference.
 #'
 #' The default `step = 12` samples the anniversary of the claim month. COLAs
 #' take effect with December's benefit, so twelve times that month is not
@@ -26,11 +35,14 @@
 #'   every month.
 #' @param chunk_size Rows computed per call to [retired_worker()]; lower it
 #'   if memory is tight. It does not change results.
+#' @param earnings_test Apply the retirement earnings test (default
+#'   `FALSE`, which keeps every result exactly SSA's calculator's).
+#' @inheritParams earnings_test
 #' @return A tibble with one row per worker and benefit month: `id` when
 #'   known (otherwise `worker`, the input row), `claim_age`, `benefit_age`
 #'   (months), `benefit_year`, `benefit_month`, then `aime`, `pia`, `mfb`,
 #'   `factor`, `benefit` (whole dollars), `method` and `insured` as in
-#'   [retired_worker()].
+#'   [retired_worker()]; with the earnings test, also `withheld` and `paid`.
 #' @export
 #' @examples
 #' earnings <- setNames(current_law()$awi[(1986:2030) - 1936], 1986:2030)
@@ -43,10 +55,17 @@
 #' m <- benefit_stream(earnings, 1964, 6, claim_age = 67 * 12, step = 1)
 #' annual <- tapply(m$benefit, m$benefit_year, sum)
 #' head(annual)
+#'
+#' # claiming at 62 and 1 month while still earning $50,000 a year to 66
+#' e2 <- c(earnings[as.character(1986:2025)], setNames(rep(50000, 5), 2026:2030))
+#' s2 <- benefit_stream(e2, 1964, 6, claim_age = 62 * 12 + 1, earnings_test = TRUE)
+#' s2[, c("benefit_year", "factor", "benefit", "withheld", "paid")]
 benefit_stream <- function(earnings, birth_year, birth_month, claim_age, to_age = 1200,
                            step = 12, first_year = NULL, birth_day = 15,
                            noncovered_pension = 0, people = NULL, policy = current_law(),
-                           chunk_size = 250000) {
+                           chunk_size = 250000, earnings_test = FALSE,
+                           grace_year = c("prorate", "none", "annual")) {
+  grace_year <- match.arg(grace_year)
   e <- as_earnings(earnings, first_year)
   fp <- fill_from_people(people, names(match.call())[-1],
                          c("birth_year", "birth_month", "birth_day", "claim_age", "to_age",
@@ -69,22 +88,41 @@ benefit_stream <- function(earnings, birth_year, birth_month, claim_age, to_age 
   count <- (last - claim) %/% step + 1
   w <- rep(seq_len(n), times = count)
   ben_age <- claim[w] + sequence(count, from = 0, by = step)
+  kb_all <- adjusted_birth(by, bm, bd)
+  k <- month_index(kb_all$year, kb_all$month)
 
-  pieces <- lapply(chunks(length(w), chunk_size), function(r) {
-    wr <- w[r]
-    retired_worker(
-      m[wr, , drop = FALSE], by[wr], bm[wr], claim[wr], first_year = e$first,
-      birth_day = bd[wr], benefit_age = ben_age[r], noncovered_pension = ncp[wr],
-      policy = policy
-    )
-  })
-  out <- do.call(rbind, pieces)
+  benefits <- function(wr, ages, wm = 0, wc = 0) {
+    wm <- rep_len(wm, length(wr))
+    wc <- rep_len(wc, length(wr))
+    pieces <- lapply(chunks(length(wr), chunk_size), function(r) {
+      x <- wr[r]
+      retired_worker(
+        m[x, , drop = FALSE], by[x], bm[x], claim[x], first_year = e$first,
+        birth_day = bd[x], benefit_age = ages[r], noncovered_pension = ncp[x],
+        policy = policy, withheld_months = wm[r], withheld_credits = wc[r]
+      )
+    })
+    do.call(rbind, pieces)
+  }
 
-  kb <- adjusted_birth(by[w], bm[w], bd[w])
-  ben <- from_month_index(month_index(kb$year, kb$month) + ben_age)
+  if (!earnings_test) {
+    out <- benefits(w, ben_age)
+  } else {
+    nra <- normal_retirement_age(by, bm, bd, policy)
+    ch <- charge_retired(m, e$first, k, claim, last, nra, grace_year, policy,
+                         function(rows, t, wm, wc) benefits(rows, t - k[rows], wm, wc)$benefit)
+    t <- k[w] + ben_age
+    out <- benefits(w, ben_age, ch$wm[w], credits_for(w, t, k, ch$credit_w, ch$credit_year))
+    hit <- match(w * 1e5 + t, ch$w * 1e5 + ch$t)
+    out$withheld <- ifelse(is.na(hit), 0, ch$amount[hit])
+    out$paid <- out$benefit - out$withheld
+  }
+
+  ben <- from_month_index(k[w] + ben_age)
   front <- stream_front(ids, w, claim_age = claim[w], benefit_age = ben_age,
                         benefit_year = ben$year, benefit_month = ben$month)
-  tibble::as_tibble(c(front, out[STREAM_COLS]))
+  cols <- if (earnings_test) c(STREAM_COLS, "withheld", "paid") else STREAM_COLS
+  tibble::as_tibble(c(front, out[cols]))
 }
 
 STREAM_COLS <- c("aime", "pia", "mfb", "factor", "benefit", "method", "insured")

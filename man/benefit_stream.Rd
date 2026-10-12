@@ -16,7 +16,9 @@ benefit_stream(
   noncovered_pension = 0,
   people = NULL,
   policy = current_law(),
-  chunk_size = 250000
+  chunk_size = 250000,
+  earnings_test = FALSE,
+  grace_year = c("prorate", "none", "annual")
 )
 }
 \arguments{
@@ -49,13 +51,19 @@ row, in earnings order and then people order.}
 
 \item{chunk_size}{Rows computed per call to \code{\link[=retired_worker]{retired_worker()}}; lower it
 if memory is tight. It does not change results.}
+
+\item{earnings_test}{Apply the retirement earnings test (default
+\code{FALSE}, which keeps every result exactly SSA's calculator's).}
+
+\item{grace_year}{How the first year of entitlement is measured:
+\code{"prorate"}, \code{"none"} or \code{"annual"}.}
 }
 \value{
 A tibble with one row per worker and benefit month: \code{id} when
 known (otherwise \code{worker}, the input row), \code{claim_age}, \code{benefit_age}
 (months), \code{benefit_year}, \code{benefit_month}, then \code{aime}, \code{pia}, \code{mfb},
 \code{factor}, \code{benefit} (whole dollars), \code{method} and \code{insured} as in
-\code{\link[=retired_worker]{retired_worker()}}.
+\code{\link[=retired_worker]{retired_worker()}}; with the earnings test, also \code{withheld} and \code{paid}.
 }
 \description{
 The monthly benefit a retired worker is paid from the claim month through
@@ -63,11 +71,20 @@ The monthly benefit a retired worker is paid from the claim month through
 \code{\link[=retired_worker]{retired_worker()}} gives with that \code{benefit_age}: the PIA carried forward
 by COLAs, the claiming factor, SSA's rounding, the special minimum, and
 recomputation for any earnings after entitlement (earnings in and after a
-benefit month's year are ignored for that month). There is no earnings
-test, mortality or discounting; \code{to_age} can differ by worker, so a death
-age from a microsimulation ends each stream.
+benefit month's year are ignored for that month). There is no mortality
+or discounting; \code{to_age} can differ by worker, so a death age from a
+microsimulation ends each stream.
 }
 \details{
+With \code{earnings_test = TRUE}, each year's earnings after the claim go
+through \code{\link[=earnings_test]{earnings_test()}}, and the excess is withheld from the benefits
+month by month from January (or the claim month) until it is used up
+(sec. 203(b), (f)(1)). From NRA, the reduction leaves out every month
+with a deduction (sec. 202(q)(7)); before 2000, months withheld after
+NRA earn delayed credits from the next January (or at 70). \code{benefit} is
+then the benefit due before the test, \code{withheld} what the test holds
+back and \code{paid} the difference.
+
 The default \code{step = 12} samples the anniversary of the claim month. COLAs
 take effect with December's benefit, so twelve times that month is not
 quite a calendar year's total; use \code{step = 1} and sum by \code{benefit_year}
@@ -84,4 +101,9 @@ head(s)
 m <- benefit_stream(earnings, 1964, 6, claim_age = 67 * 12, step = 1)
 annual <- tapply(m$benefit, m$benefit_year, sum)
 head(annual)
+
+# claiming at 62 and 1 month while still earning $50,000 a year to 66
+e2 <- c(earnings[as.character(1986:2025)], setNames(rep(50000, 5), 2026:2030))
+s2 <- benefit_stream(e2, 1964, 6, claim_age = 62 * 12 + 1, earnings_test = TRUE)
+s2[, c("benefit_year", "factor", "benefit", "withheld", "paid")]
 }
