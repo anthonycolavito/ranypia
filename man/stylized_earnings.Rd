@@ -26,8 +26,9 @@ Ignored when \code{level} or \code{real_level} is given.}
 \item{level}{Career-average earnings (scaled) or annual earnings
 (steady), as a share of the AWI: \code{1.1} is 110\%.}
 
-\item{real_level}{Career-average (scaled) or annual (steady) earnings in
-\code{price_year} dollars, deflated by the GDP price index.}
+\item{real_level}{Career-average (scaled: the 35 highest years in
+\code{price_year} dollars) or annual (steady) earnings in \code{price_year}
+dollars, deflated by the GDP price index.}
 
 \item{price_year}{The dollars \code{real_level} is in.}
 
@@ -69,10 +70,10 @@ turns 64) is a set share of that year's AWI:
 160\% of the AWI.
 \item \code{level = 1.1}: any share, here 110\%. \code{level = 1} is the medium worker,
 and \code{level = 0.25} the very low one.
-\item \code{real_level = 60000}: a career average of $60,000 in \code{price_year}
-dollars, deflated by the GDP price index; this sets \code{level} to
-$60,000 carried to the year the worker turns 64 by prices, over that
-year's AWI.
+\item \code{real_level = 60000}: a real career average of $60,000 in
+\code{price_year} dollars. The medium profile's earnings are converted to
+\code{price_year} dollars with the GDP price index, and the whole profile is
+scaled so the average of the 35 highest real years is $60,000.
 }
 
 \strong{Steady workers} (\code{shape = "steady"}) earn the same amount every year

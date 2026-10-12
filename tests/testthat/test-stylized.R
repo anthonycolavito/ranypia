@@ -86,10 +86,13 @@ test_that("real levels use the GDP price index", {
   s <- stylized_earnings(1970, real_level = 60000, price_year = 2026, shape = "steady",
                          policy = pol)
   expect_equal(s$earnings, 60000 * 1.02^(s$year - 2026), tolerance = 1e-7)
-  # scaled: the career average is $60,000 in 2026 prices, carried to 2034
+  # scaled: the medium profile, scaled so its 35 highest real years average $60,000
   k <- stylized_earnings(1970, real_level = 60000, policy = pol)
-  share <- 60000 * 1.02^(2034 - 2026) / pol$awi[2034 - 1936]
-  expect_equal(k$earnings, stylized_earnings(1970, level = share, policy = pol)$earnings)
+  real <- k$earnings / 1.02^(k$year - 2026)
+  expect_equal(mean(sort(real, decreasing = TRUE)[1:35]), 60000, tolerance = 1e-6)
+  med <- stylized_earnings(1970, policy = pol)
+  expect_equal(k$earnings / med$earnings, rep(k$earnings[1] / med$earnings[1], 44),
+               tolerance = 1e-5)
 })
 
 test_that("projected prices compound the growth rates", {
@@ -125,4 +128,11 @@ test_that("current law carries the Trustees' GDP price index", {
   # a steady real earner earns the real amount in the price year
   s <- stylized_earnings(1970, real_level = 60000, price_year = 2026, shape = "steady")
   expect_equal(s$earnings[s$year == 2026], 60000)
+  # the scaled one averages $60,000 over its 35 highest real years
+  p <- current_law()$gdp_price
+  for (by in c(1960, 1990)) {
+    k <- stylized_earnings(by, real_level = 60000)
+    real <- k$earnings * p[2026 - 1936] / p[k$year - 1936]
+    expect_equal(mean(sort(real, decreasing = TRUE)[1:35]), 60000, tolerance = 1e-6)
+  }
 })

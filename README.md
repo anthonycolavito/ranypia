@@ -72,9 +72,10 @@ stylized_earnings(1970, real_level = 60000)              # $60,000 in 2026 dolla
 
 Scaled workers have the actuaries' age profile from 21 to 64, scaled so
 their career average (the 35 highest years, wage-indexed to age 64) is the
-given share of the AWI. Steady workers earn the same share of the AWI, or
-the same real amount, every year. Real amounts use the Trustees' GDP price
-index.
+given share of the AWI. With `real_level`, the profile is scaled instead so
+the 35 highest years, in constant dollars, average the target. Steady
+workers earn the same share of the AWI, or the same real amount, every
+year. Real amounts use the Trustees' GDP price index.
 
 ## Microsimulation with panel data
 

@@ -84,10 +84,10 @@ scaled_factors <- function(digits = NULL) {
 #'   160% of the AWI.
 #' * `level = 1.1`: any share, here 110%. `level = 1` is the medium worker,
 #'   and `level = 0.25` the very low one.
-#' * `real_level = 60000`: a career average of $60,000 in `price_year`
-#'   dollars, deflated by the GDP price index; this sets `level` to
-#'   $60,000 carried to the year the worker turns 64 by prices, over that
-#'   year's AWI.
+#' * `real_level = 60000`: a real career average of $60,000 in
+#'   `price_year` dollars. The medium profile's earnings are converted to
+#'   `price_year` dollars with the GDP price index, and the whole profile is
+#'   scaled so the average of the 35 highest real years is $60,000.
 #'
 #' **Steady workers** (`shape = "steady"`) earn the same amount every year
 #' from `start_age` to `end_age`: `level` (or a type's share) times each
@@ -109,8 +109,9 @@ scaled_factors <- function(digits = NULL) {
 #'   Ignored when `level` or `real_level` is given.
 #' @param level Career-average earnings (scaled) or annual earnings
 #'   (steady), as a share of the AWI: `1.1` is 110%.
-#' @param real_level Career-average (scaled) or annual (steady) earnings in
-#'   `price_year` dollars, deflated by the GDP price index.
+#' @param real_level Career-average (scaled: the 35 highest years in
+#'   `price_year` dollars) or annual (steady) earnings in `price_year`
+#'   dollars, deflated by the GDP price index.
 #' @param price_year The dollars `real_level` is in.
 #' @param shape `"scaled"` (the actuaries' age profile) or `"steady"` (the
 #'   same share of the AWI, or the same real amount, every year).
@@ -186,11 +187,21 @@ stylized_earnings <- function(birth_year, type = "medium", level = NULL, real_le
     base <- prices_at(policy, py)
     # steady: the real amount in each year's dollars
     earnings <- real[w] * prices_at(policy, year) / base[w]
-    # scaled: the share of the AWI at 64 that the real career average is
-    at64 <- by + max(SCALED_AGES)
-    share <- real * prices_at(policy, at64) / base / at(policy$awi, at64, "awi")
-    earnings <- vif(scaled[w], share[w] * medium_factor(pmin(pmax(age, 21), 64)) * awi,
-                    earnings)
+    # scaled: the medium profile in each year's dollars, in price_year
+    # dollars, and the multiple of it whose 35 highest real years average
+    # real_level
+    if (any(scaled)) {
+      k <- rep(NA_real_, n)
+      s <- which(scaled)
+      ages <- matrix(SCALED_AGES, nrow = length(s), ncol = length(SCALED_AGES), byrow = TRUE)
+      yrs <- by[s] + ages
+      prof <- medium_factor(ages) * at(policy$awi, yrs, "awi") *
+        base[s] / prices_at(policy, yrs)
+      top35 <- apply(prof, 1, function(r) mean(sort(r, decreasing = TRUE)[1:35]))
+      k[s] <- real[s] / top35
+      earnings <- vif(scaled[w], k[w] * medium_factor(pmin(pmax(age, 21), 64)) * awi,
+                      earnings)
+    }
   } else {
     share <- if (custom) {
       as_num("level", recycle_to(level, "level", n))
