@@ -11,21 +11,31 @@ scaled_factors(digits = NULL)
 (default) for the unrounded factors.}
 }
 \value{
-A tibble with \code{age}, \code{very_low}, \code{low}, \code{medium} and \code{high}.
+A tibble with \code{age}, \code{preliminary}, \code{very_low}, \code{low}, \code{medium}
+and \code{high}.
 }
 \description{
 Earnings at each age from 21 to 64 as a share of that year's average wage
 index (AWI), for the Office of the Chief Actuary's four scaled
-hypothetical workers, from Actuarial Note 2026.3 (2026 Trustees Report).
-The note prints them to three decimals (its Table 6) but computes its
-examples from unrounded factors; these are the unrounded ones, recovered
-from the note's worked example (Table 7), and they round to Table 6
-exactly.
+hypothetical workers, computed by the method of Actuarial Note 2026.3
+(2026 Trustees Report):
 }
 \details{
-The four sets differ only by a constant: each worker's career-average
-earnings (the 35 highest years, wage-indexed to the year they turn 64)
-are 25\%, 45\%, 100\% and 160\% of the AWI for that year.
+\enumerate{
+\item The note's preliminary adjusted scaled factors (its Table 4) are
+applied to the AWI for a worker born in 1960.
+\item That worker's career-average earnings, the 35 highest years
+wage-indexed to 2024 (the year before entitlement at 65), are $57,103.
+\item Each worker's adjustment factor is its target career average (25\%, 45\%,
+100\% or 160\% of the 2024 AWI) over $57,103.
+\item Its scaled factors are the preliminary factors times its adjustment
+factor.
+}
+
+The note prints the factors to three decimals (its Table 6) but computes
+with unrounded ones. These are unrounded: the preliminary factors are
+recovered from the 1960 worker's earnings, which Table 4 prints to the
+cent. They round to Table 6 exactly.
 }
 \examples{
 scaled_factors(digits = 3)

@@ -27,17 +27,44 @@ test_that("the unrounded factors round to the note's Table 6", {
 test_that("career averages are 25, 45, 100 and 160 percent of the AWI", {
   f <- scaled_factors()
   top35 <- function(x) mean(sort(x, decreasing = TRUE)[1:35])
-  expect_equal(vapply(f[-1], top35, 0), c(very_low = 0.25, low = 0.45, medium = 1, high = 1.6),
+  expect_equal(vapply(f[-(1:2)], top35, 0), c(very_low = 0.25, low = 0.45, medium = 1, high = 1.6),
                tolerance = 1e-4)
 })
 
-test_that("the high earner matches the note's Table 7 examples to the cent", {
+TABLE4_PRELIM <- c(.226, .279, .357, .426, .480, .527, .571, .611, .647, .678, .706, .732,
+                   .754, .775, .793, .808, .822, .834, .845, .854, .863, .870, .876, .882,
+                   .887, .890, .893, .894, .894, .893, .892, .888, .883, .876, .867, .851,
+                   .832, .812, .788, .758, .717, .693, .669, .646)
+
+test_that("each step of the note's method reproduces its tables", {
+  f <- scaled_factors()
+  # step 1: preliminary factors (Table 4, and age 22 as the text gives it)
+  expect_equal(round(f$preliminary, 3), TABLE4_PRELIM)
+  expect_equal(round(f$preliminary[2], 6), 0.278758)
+  expect_identical(ranypia:::T4_AWI, current_law()$awi[(1981:2024) - 1936])
+  # step 2: the 1960 worker's career average
+  expect_identical(ranypia:::oact_career_average(), 57103)
+  # step 3: adjustment factors (Table 5)
+  adj <- c(0.25, 0.45, 1, 1.6) * 69846.57 / 57103
+  expect_equal(round(adj, 3), c(0.306, 0.550, 1.223, 1.957))
+  # step 4: factors are preliminary times adjustment
+  expect_equal(f$high, f$preliminary * adj[4])
+})
+
+test_that("the high earner matches the note's Table 7 examples", {
+  # Table 7: the high earner born in 1973, ages 21-64
+  t7 <- c(10496.92, 13478.14, 18088.27, 22878.36, 27117.60, 31453.75, 35950.89, 39382.67,
+          42078.42, 45194.94, 49247.67, 52902.62, 57050.08, 61267.22, 64138.07, 64407.23,
+          67059.24, 70160.97, 73285.28, 75034.57, 78489.43, 81858.89, 83378.88, 86882.85,
+          90485.74, 94255.25, 97195.53, 105975.39, 111598.74, 116496.84, 121933.87,
+          125205.41, 129991.25, 134165.78, 138319.71, 141626.75, 144796.05, 147655.08,
+          149646.23, 149881.74, 147484.97, 147849.82, 148051.40, 148167.37)
   e <- stylized_earnings(c(1949, 1973), type = "high")
-  # 1949 at ages 21, 30, 40, 50, 64
+  # within 2 cents: the preliminary factors are recovered from earnings
+  # printed to the cent, so their last digits are uncertain
   e49 <- e$earnings[e$id == 1 & e$age %in% c(21, 30, 40, 50, 64)]
-  expect_equal(e49, c(2733.76, 15230.13, 33598.19, 53280.46, 56728.31))
-  # 1973, every age
-  expect_equal(e$earnings[e$id == 2], ranypia:::T7_EARNINGS)
+  expect_lte(max(abs(e49 - c(2733.76, 15230.13, 33598.19, 53280.46, 56728.31))), 0.0201)
+  expect_lte(max(abs(e$earnings[e$id == 2] - t7)), 0.0201)
   expect_equal(e$year[e$id == 2], 1994:2037)
 })
 

@@ -2,64 +2,96 @@
 # hypothetical workers (very low, low, medium, high), the maximum earner,
 # steady earners, and custom levels in AWI shares or constant dollars.
 
-# The scaled factors, unrounded. Actuarial Note 2026.3 ("Scaled Factors for
+# The actuaries' method (Actuarial Note 2026.3, "Scaled Factors for
 # Hypothetical Earnings Examples Under the 2026 Trustees Report
-# Assumptions", https://www.ssa.gov/OACT/NOTES/ran3/an2026-3.pdf) prints the
-# factors to three decimals (Table 6), but its worked examples (Table 7) are
-# computed from unrounded factors. The high earner born in 1973 has earnings
-# at ages 21-64 (1994-2037) of:
-T7_EARNINGS <- c(
-  10496.92, 13478.14, 18088.27, 22878.36, 27117.60, 31453.75, 35950.89, 39382.67,
-  42078.42, 45194.94, 49247.67, 52902.62, 57050.08, 61267.22, 64138.07, 64407.23,
-  67059.24, 70160.97, 73285.28, 75034.57, 78489.43, 81858.89, 83378.88, 86882.85,
-  90485.74, 94255.25, 97195.53, 105975.39, 111598.74, 116496.84, 121933.87,
-  125205.41, 129991.25, 134165.78, 138319.71, 141626.75, 144796.05, 147655.08,
-  149646.23, 149881.74, 147484.97, 147849.82, 148051.40, 148167.37
+# Assumptions", https://www.ssa.gov/OACT/NOTES/ran3/an2026-3.pdf):
+#
+# 1. Preliminary adjusted scaled factors by age (the note's Table 4), from
+#    CWHS earnings of insured workers, with ages 62-64 held flat in nominal
+#    terms after 61.
+# 2. A preliminary worker born in 1960 earns those factors times the AWI at
+#    each age, 1981-2024. Wage-indexed to 2024, the year before entitlement
+#    at 65, the 35 highest years average $57,103 (Table 4).
+# 3. Each worker's target career average is a share of the 2024 AWI: 25%,
+#    45%, 100% and 160% (Table 5). The ratio of target to $57,103 is the
+#    adjustment factor.
+# 4. Each worker's scaled factors are the preliminary factors times its
+#    adjustment factor (Table 6).
+#
+# Table 4 prints the preliminary factors to three decimals but the 1960
+# worker's earnings to the cent; these are those earnings, 1981-2024:
+T4_EARNINGS <- c(
+  3109.99, 4050.73, 5435.27, 6877.44, 8076.40, 9136.71, 10526.90, 11817.80, 12996.33,
+  14255.20, 15396.61, 16777.56, 17446.59, 18403.90, 19587.93, 20948.02, 22550.26,
+  24073.82, 25743.33, 27464.36, 28405.99, 28916.52, 29836.30, 31449.44, 32764.51,
+  34408.64, 36073.00, 36950.69, 36390.15, 37235.32, 38338.54, 39368.55, 39623.45,
+  40703.03, 41692.08, 41389.36, 41881.80, 42342.29, 42651.30, 42145.51, 43456.80,
+  44189.32, 44556.62, 45103.16
 )
-# ... on an AWI of (identical to current_law()$awi for 1994-2037):
-T7_AWI <- c(
-  23753.53, 24705.66, 25913.90, 27426.00, 28861.44, 30469.84, 32154.82, 32921.92,
-  33252.09, 34064.95, 35648.55, 36952.94, 38651.41, 40405.48, 41334.97, 40711.61,
-  41673.83, 42979.61, 44321.67, 44888.16, 46481.52, 48098.63, 48642.15, 50321.89,
-  52145.80, 54099.99, 55628.60, 60575.07, 63795.13, 66621.80, 69846.57, 72025.07,
-  75246.70, 78286.92, 81537.43, 85047.82, 88895.99, 92915.31, 96989.47, 101085.63,
-  105045.59, 109064.86, 113112.48, 117242.36
+# ... on the AWI for 1981-2024 (identical to current_law()$awi):
+T4_AWI <- c(
+  13773.10, 14531.34, 15239.24, 16135.07, 16822.51, 17321.82, 18426.51, 19334.04,
+  20099.55, 21027.98, 21811.60, 22935.42, 23132.67, 23753.53, 24705.66, 25913.90,
+  27426.00, 28861.44, 30469.84, 32154.82, 32921.92, 33252.09, 34064.95, 35648.55,
+  36952.94, 38651.41, 40405.48, 41334.97, 40711.61, 41673.83, 42979.61, 44321.67,
+  44888.16, 46481.52, 48098.63, 48642.15, 50321.89, 52145.80, 54099.99, 55628.60,
+  60575.07, 63795.13, 66621.80, 69846.57
 )
-# Their ratio is the high factor to about seven digits. All four levels are
-# one set of preliminary factors times a constant (the note's "adjustment
-# factors"), so each level is the high factor times its share over 1.6.
-# These reproduce every factor in Table 6 when rounded to three decimals,
-# and the medium factors' 35 highest average 1.000.
+# Their ratio recovers the unrounded preliminary factors (age 22: 0.278758,
+# as the note's text gives it).
 SCALED_AGES <- 21:64
 SCALED_SHARES <- c(very_low = 0.25, low = 0.45, medium = 1, high = 1.6)
 STYLIZED_TYPES <- c(names(SCALED_SHARES), "max")
-medium_factor <- function(age) (T7_EARNINGS / T7_AWI / 1.6)[age - SCALED_AGES[1] + 1]
+PRELIM_FACTORS <- T4_EARNINGS / T4_AWI
+AWI_2024 <- T4_AWI[length(T4_AWI)]
+
+# Step 2: the 1960 worker's career average, indexed to 2024, in whole
+# dollars as the note uses it.
+oact_career_average <- function() {
+  indexed <- floor(T4_EARNINGS * AWI_2024 / T4_AWI * 100 + 0.5) / 100
+  floor(mean(sort(indexed, decreasing = TRUE)[1:35]) + 0.5)
+}
+
+# Steps 3-4: the scaled factor at `age` for a worker whose career average
+# is `share` times the AWI.
+scaled_factor <- function(age, share) {
+  PRELIM_FACTORS[age - SCALED_AGES[1] + 1] * share * AWI_2024 / oact_career_average()
+}
+medium_factor <- function(age) scaled_factor(age, 1)
 
 #' The actuaries' scaled factors
 #'
 #' Earnings at each age from 21 to 64 as a share of that year's average wage
 #' index (AWI), for the Office of the Chief Actuary's four scaled
-#' hypothetical workers, from Actuarial Note 2026.3 (2026 Trustees Report).
-#' The note prints them to three decimals (its Table 6) but computes its
-#' examples from unrounded factors; these are the unrounded ones, recovered
-#' from the note's worked example (Table 7), and they round to Table 6
-#' exactly.
+#' hypothetical workers, computed by the method of Actuarial Note 2026.3
+#' (2026 Trustees Report):
 #'
-#' The four sets differ only by a constant: each worker's career-average
-#' earnings (the 35 highest years, wage-indexed to the year they turn 64)
-#' are 25%, 45%, 100% and 160% of the AWI for that year.
+#' 1. The note's preliminary adjusted scaled factors (its Table 4) are
+#'    applied to the AWI for a worker born in 1960.
+#' 2. That worker's career-average earnings, the 35 highest years
+#'    wage-indexed to 2024 (the year before entitlement at 65), are $57,103.
+#' 3. Each worker's adjustment factor is its target career average (25%, 45%,
+#'    100% or 160% of the 2024 AWI) over $57,103.
+#' 4. Its scaled factors are the preliminary factors times its adjustment
+#'    factor.
+#'
+#' The note prints the factors to three decimals (its Table 6) but computes
+#' with unrounded ones. These are unrounded: the preliminary factors are
+#' recovered from the 1960 worker's earnings, which Table 4 prints to the
+#' cent. They round to Table 6 exactly.
 #'
 #' @param digits Round to this many decimals (`3` gives Table 6), or `NULL`
 #'   (default) for the unrounded factors.
-#' @return A tibble with `age`, `very_low`, `low`, `medium` and `high`.
+#' @return A tibble with `age`, `preliminary`, `very_low`, `low`, `medium`
+#'   and `high`.
 #' @seealso [stylized_earnings()]
 #' @export
 #' @examples
 #' scaled_factors(digits = 3)
 scaled_factors <- function(digits = NULL) {
-  m <- medium_factor(SCALED_AGES)
-  out <- tibble::tibble(age = SCALED_AGES, very_low = 0.25 * m, low = 0.45 * m,
-                        medium = m, high = 1.6 * m)
+  f <- function(share) scaled_factor(SCALED_AGES, share)
+  out <- tibble::tibble(age = SCALED_AGES, preliminary = PRELIM_FACTORS,
+                        very_low = f(0.25), low = f(0.45), medium = f(1), high = f(1.6))
   if (!is.null(digits)) out[-1] <- round(out[-1], digits)
   out
 }
@@ -82,8 +114,9 @@ scaled_factors <- function(digits = NULL) {
 #'
 #' * `type = "very_low"`, `"low"`, `"medium"`, `"high"`: 25%, 45%, 100% and
 #'   160% of the AWI.
-#' * `level = 1.1`: any share, here 110%. `level = 1` is the medium worker,
-#'   and `level = 0.25` the very low one.
+#' * `level = 1.1`: any share, here 110%, by the same method: the
+#'   preliminary factors times 1.1 times the 2024 AWI over $57,103.
+#'   `level = 1` is the medium worker, and `level = 0.25` the very low one.
 #' * `real_level = 60000`: a real career average of $60,000 in
 #'   `price_year` dollars. The medium profile's earnings are converted to
 #'   `price_year` dollars with the GDP price index, and the whole profile is

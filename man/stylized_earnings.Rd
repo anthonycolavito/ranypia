@@ -68,8 +68,9 @@ turns 64) is a set share of that year's AWI:
 \itemize{
 \item \code{type = "very_low"}, \code{"low"}, \code{"medium"}, \code{"high"}: 25\%, 45\%, 100\% and
 160\% of the AWI.
-\item \code{level = 1.1}: any share, here 110\%. \code{level = 1} is the medium worker,
-and \code{level = 0.25} the very low one.
+\item \code{level = 1.1}: any share, here 110\%, by the same method: the
+preliminary factors times 1.1 times the 2024 AWI over $57,103.
+\code{level = 1} is the medium worker, and \code{level = 0.25} the very low one.
 \item \code{real_level = 60000}: a real career average of $60,000 in
 \code{price_year} dollars. The medium profile's earnings are converted to
 \code{price_year} dollars with the GDP price index, and the whole profile is
